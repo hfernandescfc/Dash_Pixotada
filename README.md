@@ -2,6 +2,14 @@
 
 Dashboard e análises da Pixotada 2026.
 
+## Publicação
+
+O repositório está preparado para publicação automática no GitHub Pages via GitHub Actions.
+
+URL esperada após ativação do Pages:
+
+- `https://hfernandescfc.github.io/Dash_Pixotada/`
+
 ## Conteúdo
 
 - `index.html`: dashboard principal
