@@ -18,7 +18,7 @@ EXPECTED_POINTS_MAP = {1.0: 4, 2.0: 3, 3.0: 2, 4.0: 1}
 NEUTRAL_RATING = 4
 
 ALIASES = {
-    "gabriel de leon": "Gabriel",
+    "gabriel de leon": "Fuinha",
     "gabriel lira": "Gabriel",
     "guilherme figueiredo": "Guilherme",
     "guilherme calafa": "Calafa",
