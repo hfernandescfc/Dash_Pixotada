@@ -100,51 +100,194 @@ def build_adjusted_impact(df: pd.DataFrame, strength_map: dict[str, float]) -> p
     return summary
 
 
-def suggest_row(row: pd.Series) -> tuple[int, str, str]:
-    current = int(row["rating"])
+def build_participation_baseline(df: pd.DataFrame, players_df: pd.DataFrame) -> pd.DataFrame:
+    player_ratings = players_df[["scout_name", "rating"]].rename(columns={"scout_name": "Jogadores"})
+    rated_games = df.merge(player_ratings, on="Jogadores", how="left")
+
+    player_summary = (
+        rated_games.groupby(["Jogadores", "rating"], as_index=False)
+        .agg(
+            Jogos_ult6=("Data", "count"),
+            Participacoes_ult6=("participacoes", "sum"),
+        )
+    )
+    player_summary["Participacao_real_pg"] = (
+        player_summary["Participacoes_ult6"] / player_summary["Jogos_ult6"].clip(lower=1)
+    )
+
+    global_mean = player_summary["Participacao_real_pg"].mean()
+    rating_baseline = (
+        player_summary.groupby("rating", as_index=False)
+        .agg(
+            Participacao_media_nota=("Participacao_real_pg", "mean"),
+            Participacao_std_nota=("Participacao_real_pg", "std"),
+            Jogadores_na_faixa=("Jogadores", "count"),
+        )
+    )
+    rating_baseline["Participacao_std_nota"] = rating_baseline["Participacao_std_nota"].fillna(0)
+    rating_baseline["Participacao_esperada_pg_nota"] = (
+        rating_baseline["Participacao_media_nota"] * rating_baseline["Jogadores_na_faixa"] + global_mean * 2
+    ) / (rating_baseline["Jogadores_na_faixa"] + 2)
+
+    player_summary = player_summary.merge(rating_baseline, on="rating", how="left")
+    player_summary["Delta_participacao_vs_nota"] = (
+        player_summary["Participacao_real_pg"] - player_summary["Participacao_esperada_pg_nota"]
+    )
+    player_summary["Z_participacao_vs_nota"] = player_summary.apply(
+        lambda row: 0
+        if pd.isna(row["Participacao_std_nota"]) or row["Participacao_std_nota"] == 0
+        else row["Delta_participacao_vs_nota"] / row["Participacao_std_nota"],
+        axis=1,
+    )
+    return player_summary
+
+
+def evaluate_recommendation(row: pd.Series) -> dict:
+    current = None if pd.isna(row.get("rating")) else int(row["rating"])
     impact = row.get("Impacto_ajustado")
-    participacoes = row.get("Participacoes_ult6")
     position = row.get("Posicao")
     jogos = row.get("Jogos_ult6", 0)
+    top_recent = bool(row.get("Top_recent", False))
+    bottom_recent = bool(row.get("Bottom_recent", False))
+    participacao_real_pg = row.get("Participacao_real_pg")
+    participacao_esperada = row.get("Participacao_esperada_pg_nota")
+    delta_participacao = row.get("Delta_participacao_vs_nota")
 
-    if pd.isna(impact) or pd.isna(position) or jogos < 3:
-        return current, "manter", "Sem amostra minima no recorte das ultimas 6 peladas."
+    metrics = {
+        "nota_atual": current,
+        "impacto_ajustado": None if pd.isna(impact) else float(impact),
+        "posicao_modelo_recente": None if pd.isna(position) else int(position),
+        "jogos_ult6": None if pd.isna(jogos) else int(jogos),
+        "top_recent": top_recent,
+        "bottom_recent": bottom_recent,
+        "participacao_real_pg": None if pd.isna(participacao_real_pg) else float(participacao_real_pg),
+        "participacao_esperada_pg_nota": None if pd.isna(participacao_esperada) else float(participacao_esperada),
+        "delta_participacao_vs_nota": None if pd.isna(delta_participacao) else float(delta_participacao),
+    }
 
-    strong_up = impact >= 0.5 and position >= 10
-    moderate_up = impact >= 0.25 and position >= 14
-    # If the player is underperforming versus expectation, allow a downgrade
-    # either because he is still ranking high individually or because the
-    # observed collective signal is strongly negative.
-    strong_down = impact <= -0.75 or (impact <= -0.5 and position <= 10)
-    moderate_down = impact <= -0.5 and current >= 4
+    if current is None or pd.isna(impact) or pd.isna(position) or jogos < 3:
+        return {
+            "metrics": metrics,
+            "flags": {
+                "amostra_minima_ok": False,
+                "ataque_ok": None,
+                "ataque_forte": None,
+                "ataque_fraco": None,
+                "ataque_muito_fraco": None,
+                "strong_up": False,
+                "moderate_up": False,
+                "strong_down": False,
+                "moderate_down": False,
+            },
+            "thresholds": {
+                "subida_principal": "top_recent = True, impacto >= 0.20, ataque_ok = True, nota_atual < 7",
+                "subida_secundaria": "posicao <= 10, impacto >= 0.35, ataque_forte = True, nota_atual < 7",
+                "descida_principal": "bottom_recent = True, impacto <= -0.20, ataque_fraco = True, nota_atual > 1",
+                "descida_secundaria": (
+                    "(impacto <= -0.50, posicao >= 10, nota_atual >= 4, ataque_fraco = True) "
+                    "ou (nota_atual >= 5, ataque_muito_fraco = True, impacto <= 0)"
+                ),
+            },
+            "decision": {
+                "nova_nota_sugerida": current,
+                "sinal": "manter",
+                "justificativa": "Sem amostra minima no recorte das ultimas 6 peladas.",
+                "regra_acionada": "amostra_insuficiente",
+            },
+        }
+
+    ataque_ok = pd.isna(delta_participacao) or delta_participacao > -0.3
+    ataque_forte = not pd.isna(delta_participacao) and delta_participacao >= 0.35
+    ataque_fraco = not pd.isna(delta_participacao) and delta_participacao <= -0.35
+    ataque_muito_fraco = not pd.isna(delta_participacao) and delta_participacao <= -0.75
+
+    strong_up = top_recent and impact >= 0.2 and ataque_ok and current < 7
+    moderate_up = position <= 10 and impact >= 0.35 and ataque_forte and current < 7
+    strong_down = bottom_recent and impact <= -0.2 and ataque_fraco and current > 1
+    moderate_down = (impact <= -0.5 and position >= 10 and current >= 4 and ataque_fraco) or (
+        current >= 5 and ataque_muito_fraco and impact <= 0
+    )
+
+    participacao_trecho = ""
+    if not pd.isna(participacao_real_pg) and not pd.isna(participacao_esperada):
+        participacao_trecho = (
+            f" Produziu {participacao_real_pg:.2f} participacoes por jogo, contra {participacao_esperada:.2f} "
+            f"esperadas para a faixa de nota {current}."
+        )
 
     if strong_up or moderate_up:
         new_rating = min(7, current + 1)
         reason = (
-            f"Jogou {int(jogos)} vezes nas ultimas 6, somou {int(participacoes)} participacoes, "
-            f"mas ainda assim ficou apenas na posicao {int(position)} do desempenho recente. "
-            f"O impacto ajustado de {impact:.2f} sugere que seus times renderam acima do esperado pela forca recente observada."
+            f"Classificacao recente como criterio principal: ficou na posicao {int(position)} e ajudou seus times a renderem "
+            f"acima do esperado, com impacto ajustado de {impact:.2f} nas ultimas 6 peladas."
+            f"{participacao_trecho}"
         )
-        return new_rating, "subir", reason
-
-    if strong_down or moderate_down:
+        regra = "strong_up" if strong_up else "moderate_up"
+        signal = "subir"
+    elif strong_down or moderate_down:
         new_rating = max(1, current - 1)
         reason = (
-            f"Jogou {int(jogos)} vezes nas ultimas 6, ficou na posicao {int(position)} do desempenho recente, "
-            f"mas o impacto ajustado foi {impact:.2f}, indicando que seus times renderam abaixo do esperado pela forca recente observada."
+            f"Classificacao recente como criterio principal: ficou na posicao {int(position)} e o impacto ajustado foi "
+            f"{impact:.2f}, sinalizando rendimento abaixo do esperado no recorte recente."
+            f"{participacao_trecho}"
         )
-        return new_rating, "descer", reason
+        regra = "strong_down" if strong_down else "moderate_down"
+        signal = "descer"
+    else:
+        new_rating = current
+        reason = (
+            f"Classificacao recente segue compativel com a nota atual: posicao {int(position)} e impacto ajustado de {impact:.2f} "
+            f"sem sinal forte para ajuste."
+            f"{participacao_trecho}"
+        )
+        regra = "manter"
+        signal = "manter"
 
-    reason = (
-        f"Jogou {int(jogos)} vezes nas ultimas 6, impacto ajustado de {impact:.2f} e desempenho recente sem sinal claro "
-        f"de incompatibilidade com a nota atual."
-    )
-    return current, "manter", reason
+    return {
+        "metrics": metrics,
+        "flags": {
+            "amostra_minima_ok": True,
+            "ataque_ok": ataque_ok,
+            "ataque_forte": ataque_forte,
+            "ataque_fraco": ataque_fraco,
+            "ataque_muito_fraco": ataque_muito_fraco,
+            "strong_up": strong_up,
+            "moderate_up": moderate_up,
+            "strong_down": strong_down,
+            "moderate_down": moderate_down,
+        },
+        "thresholds": {
+            "subida_principal": "top_recent = True, impacto >= 0.20, ataque_ok = True, nota_atual < 7",
+            "subida_secundaria": "posicao <= 10, impacto >= 0.35, ataque_forte = True, nota_atual < 7",
+            "descida_principal": "bottom_recent = True, impacto <= -0.20, ataque_fraco = True, nota_atual > 1",
+            "descida_secundaria": (
+                "(impacto <= -0.50, posicao >= 10, nota_atual >= 4, ataque_fraco = True) "
+                "ou (nota_atual >= 5, ataque_muito_fraco = True, impacto <= 0)"
+            ),
+        },
+        "decision": {
+            "nova_nota_sugerida": new_rating,
+            "sinal": signal,
+            "justificativa": reason,
+            "regra_acionada": regra,
+        },
+    }
+
+
+def suggest_row(row: pd.Series) -> tuple[int, str, str]:
+    evaluation = evaluate_recommendation(row)
+    decision = evaluation["decision"]
+    return decision["nova_nota_sugerida"], decision["sinal"], decision["justificativa"]
 
 
 def build_html(df: pd.DataFrame) -> str:
     table = df.copy()
-    numeric_cols = ["Impacto_ajustado"]
+    numeric_cols = [
+        "Impacto_ajustado",
+        "participacao_real_pg",
+        "participacao_esperada_pg_nota",
+        "delta_participacao_vs_nota",
+    ]
     for col in numeric_cols:
         table[col] = table[col].map(lambda x: "" if pd.isna(x) else f"{x:.2f}")
     return f"""
@@ -241,6 +384,7 @@ def main() -> None:
 
     recent_form = build_recent_form(recent_df, all_recent_names)
     adjusted = build_adjusted_impact(recent_df, dict(zip(recent_form["Jogadores"], recent_form["Nota_final"])))
+    participation_baseline = build_participation_baseline(recent_df, players_df)
 
     result = players_df.merge(
         recent_form[
@@ -251,6 +395,8 @@ def main() -> None:
                 "Participacoes_ult4",
                 "Media_classificacao",
                 "Jogos_considerados",
+                "Top_recent",
+                "Bottom_recent",
             ]
         ],
         left_on="scout_name",
@@ -262,6 +408,21 @@ def main() -> None:
         right_on="Jogadores",
         how="left",
         suffixes=("", "_impact"),
+    ).merge(
+        participation_baseline[
+            [
+                "Jogadores",
+                "Participacao_real_pg",
+                "Participacao_esperada_pg_nota",
+                "Delta_participacao_vs_nota",
+                "Z_participacao_vs_nota",
+                "Jogadores_na_faixa",
+            ]
+        ],
+        left_on="scout_name",
+        right_on="Jogadores",
+        how="left",
+        suffixes=("", "_baseline"),
     )
 
     suggestions = result.apply(suggest_row, axis=1, result_type="expand")
@@ -279,6 +440,9 @@ def main() -> None:
             "Posicao",
             "Participacoes_ult6",
             "Impacto_ajustado",
+            "Participacao_real_pg",
+            "Participacao_esperada_pg_nota",
+            "Delta_participacao_vs_nota",
             "justificativa",
         ]
     ].rename(
@@ -289,6 +453,9 @@ def main() -> None:
             "Jogos_ult6": "jogos_ult6",
             "Posicao": "posicao_modelo_recente",
             "Participacoes_ult6": "participacoes_ult6",
+            "Participacao_real_pg": "participacao_real_pg",
+            "Participacao_esperada_pg_nota": "participacao_esperada_pg_nota",
+            "Delta_participacao_vs_nota": "delta_participacao_vs_nota",
         }
     )
 
