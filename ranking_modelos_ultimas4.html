@@ -1,0 +1,646 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Ranking Pixotada 2026 - Modelos</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f6f1e8;
+      color: #1f2933;
+    }
+    .wrap {
+      width: min(1280px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 40px;
+    }
+    .hero, .card {
+      background: #fffdf8;
+      border: 1px solid #dccfb8;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 10px 24px rgba(66, 52, 23, 0.06);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .table th, .table td {
+      border-bottom: 1px solid #eadfc9;
+      padding: 10px 8px;
+      text-align: left;
+    }
+    .table th {
+      background: #f6efe2;
+    }
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .nav a {
+      text-decoration: none;
+      color: #1f2933;
+      background: rgba(255,255,255,0.78);
+      border: 1px solid #dccfb8;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>Comparativo de Modelos de Pontuação</h1>
+      <p>Base: últimas 4 participações de cada jogador, com pesos de recência 40% / 30% / 20% / 10%.</p>
+      <p>O modelo equilibrado foi usado como referência principal para ordenar a tabela comparativa.</p>
+      <div class="nav">
+        <a href="dashboard_pixotada_2026.html">Dashboard</a>
+        <a href="ranking_modelos_ultimas4.html">Modelos de pontuação</a>
+        <a href="efeito_jogadores.html">Efeito dos jogadores</a>
+        <a href="sugestao_novas_notas.html">Sugestão de notas</a>
+        <a href="detalhe_recomendacoes_notas.html">Detalhe das recomendações</a>
+      </div>
+    </section>
+    <section class="card" style="margin-top:20px;">
+      <h2>Comparativo geral</h2>
+      <table class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Jogadores</th>
+      <th>Posicao_conservador</th>
+      <th>Nota_conservador</th>
+      <th>Posicao_equilibrado</th>
+      <th>Nota_equilibrado</th>
+      <th>Posicao_agressivo</th>
+      <th>Nota_agressivo</th>
+      <th>Media_notas</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Luquinhas</td>
+      <td>1</td>
+      <td>4.00</td>
+      <td>1</td>
+      <td>3.82</td>
+      <td>2</td>
+      <td>3.08</td>
+      <td>3.64</td>
+    </tr>
+    <tr>
+      <td>Júnior</td>
+      <td>2</td>
+      <td>2.80</td>
+      <td>2</td>
+      <td>3.24</td>
+      <td>1</td>
+      <td>3.34</td>
+      <td>3.13</td>
+    </tr>
+    <tr>
+      <td>Hugão</td>
+      <td>3</td>
+      <td>2.80</td>
+      <td>3</td>
+      <td>2.68</td>
+      <td>4</td>
+      <td>2.52</td>
+      <td>2.66</td>
+    </tr>
+    <tr>
+      <td>Cláudio</td>
+      <td>12</td>
+      <td>2.25</td>
+      <td>4</td>
+      <td>2.62</td>
+      <td>3</td>
+      <td>2.55</td>
+      <td>2.47</td>
+    </tr>
+    <tr>
+      <td>Vareta</td>
+      <td>5</td>
+      <td>2.72</td>
+      <td>5</td>
+      <td>2.56</td>
+      <td>13</td>
+      <td>1.83</td>
+      <td>2.37</td>
+    </tr>
+    <tr>
+      <td>Nego</td>
+      <td>6</td>
+      <td>2.65</td>
+      <td>6</td>
+      <td>2.50</td>
+      <td>7</td>
+      <td>2.19</td>
+      <td>2.45</td>
+    </tr>
+    <tr>
+      <td>Serginho</td>
+      <td>13</td>
+      <td>2.02</td>
+      <td>7</td>
+      <td>2.34</td>
+      <td>8</td>
+      <td>2.12</td>
+      <td>2.16</td>
+    </tr>
+    <tr>
+      <td>Felipe Fragoso</td>
+      <td>7</td>
+      <td>2.48</td>
+      <td>8</td>
+      <td>2.34</td>
+      <td>11</td>
+      <td>1.85</td>
+      <td>2.22</td>
+    </tr>
+    <tr>
+      <td>Guila</td>
+      <td>4</td>
+      <td>2.73</td>
+      <td>9</td>
+      <td>2.26</td>
+      <td>16</td>
+      <td>1.66</td>
+      <td>2.22</td>
+    </tr>
+    <tr>
+      <td>Porpino</td>
+      <td>16</td>
+      <td>1.90</td>
+      <td>10</td>
+      <td>2.14</td>
+      <td>9</td>
+      <td>2.04</td>
+      <td>2.02</td>
+    </tr>
+    <tr>
+      <td>Arthur Melo</td>
+      <td>8</td>
+      <td>2.43</td>
+      <td>11</td>
+      <td>2.14</td>
+      <td>14</td>
+      <td>1.77</td>
+      <td>2.11</td>
+    </tr>
+    <tr>
+      <td>PS</td>
+      <td>25</td>
+      <td>1.60</td>
+      <td>12</td>
+      <td>2.04</td>
+      <td>5</td>
+      <td>2.33</td>
+      <td>1.99</td>
+    </tr>
+    <tr>
+      <td>Dudu</td>
+      <td>21</td>
+      <td>1.70</td>
+      <td>13</td>
+      <td>2.04</td>
+      <td>6</td>
+      <td>2.26</td>
+      <td>2.00</td>
+    </tr>
+    <tr>
+      <td>Diogo</td>
+      <td>11</td>
+      <td>2.27</td>
+      <td>14</td>
+      <td>2.02</td>
+      <td>17</td>
+      <td>1.63</td>
+      <td>1.98</td>
+    </tr>
+    <tr>
+      <td>Guilherme</td>
+      <td>22</td>
+      <td>1.68</td>
+      <td>15</td>
+      <td>1.98</td>
+      <td>10</td>
+      <td>1.98</td>
+      <td>1.88</td>
+    </tr>
+  </tbody>
+</table>
+    </section>
+    <section class="grid">
+      
+            <section class="card">
+              <h2>Top 10: Conservador</h2>
+              <p>Maior peso para o resultado coletivo.</p>
+              <table class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Modelo</th>
+      <th>Posicao</th>
+      <th>Jogadores</th>
+      <th>Nota_final</th>
+      <th>Jogos_considerados</th>
+      <th>Participacoes_ult4</th>
+      <th>Media_classificacao</th>
+      <th>Amostra_reduzida</th>
+      <th>Descricao_modelo</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>conservador</td>
+      <td>1</td>
+      <td>Luquinhas</td>
+      <td>4.00</td>
+      <td>4</td>
+      <td>11</td>
+      <td>4.00</td>
+      <td>False</td>
+      <td>Maior peso para o resultado coletivo.</td>
+    </tr>
+    <tr>
+      <td>conservador</td>
+      <td>2</td>
+      <td>Júnior</td>
+      <td>2.80</td>
+      <td>4</td>
+      <td>15</td>
+      <td>3.00</td>
+      <td>False</td>
+      <td>Maior peso para o resultado coletivo.</td>
+    </tr>
+    <tr>
+      <td>conservador</td>
+      <td>3</td>
+      <td>Hugão</td>
+      <td>2.80</td>
+      <td>4</td>
+      <td>9</td>
+      <td>2.75</td>
+      <td>False</td>
+      <td>Maior peso para o resultado coletivo.</td>
+    </tr>
+    <tr>
+      <td>conservador</td>
+      <td>4</td>
+      <td>Guila</td>
+      <td>2.73</td>
+      <td>4</td>
+      <td>2</td>
+      <td>2.75</td>
+      <td>False</td>
+      <td>Maior peso para o resultado coletivo.</td>
+    </tr>
+    <tr>
+      <td>conservador</td>
+      <td>5</td>
+      <td>Vareta</td>
+      <td>2.72</td>
+      <td>4</td>
+      <td>2</td>
+      <td>4.00</td>
+      <td>False</td>
+      <td>Maior peso para o resultado coletivo.</td>
+    </tr>
+    <tr>
+      <td>conservador</td>
+      <td>6</td>
+      <td>Nego</td>
+      <td>2.65</td>
+      <td>4</td>
+      <td>5</td>
+      <td>2.25</td>
+      <td>False</td>
+      <td>Maior peso para o resultado coletivo.</td>
+    </tr>
+    <tr>
+      <td>conservador</td>
+      <td>7</td>
+      <td>Felipe Fragoso</td>
+      <td>2.48</td>
+      <td>4</td>
+      <td>3</td>
+      <td>3.50</td>
+      <td>False</td>
+      <td>Maior peso para o resultado coletivo.</td>
+    </tr>
+    <tr>
+      <td>conservador</td>
+      <td>8</td>
+      <td>Arthur Melo</td>
+      <td>2.43</td>
+      <td>3</td>
+      <td>3</td>
+      <td>2.67</td>
+      <td>True</td>
+      <td>Maior peso para o resultado coletivo.</td>
+    </tr>
+    <tr>
+      <td>conservador</td>
+      <td>9</td>
+      <td>Fuinha</td>
+      <td>2.40</td>
+      <td>4</td>
+      <td>0</td>
+      <td>2.75</td>
+      <td>False</td>
+      <td>Maior peso para o resultado coletivo.</td>
+    </tr>
+    <tr>
+      <td>conservador</td>
+      <td>10</td>
+      <td>Thiaguinho</td>
+      <td>2.33</td>
+      <td>2</td>
+      <td>2</td>
+      <td>4.00</td>
+      <td>True</td>
+      <td>Maior peso para o resultado coletivo.</td>
+    </tr>
+  </tbody>
+</table>
+            </section>
+            
+            <section class="card">
+              <h2>Top 10: Equilibrado</h2>
+              <p>Equilibra classificacao e impacto ofensivo.</p>
+              <table class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Modelo</th>
+      <th>Posicao</th>
+      <th>Jogadores</th>
+      <th>Nota_final</th>
+      <th>Jogos_considerados</th>
+      <th>Participacoes_ult4</th>
+      <th>Media_classificacao</th>
+      <th>Amostra_reduzida</th>
+      <th>Descricao_modelo</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>equilibrado</td>
+      <td>1</td>
+      <td>Luquinhas</td>
+      <td>3.82</td>
+      <td>4</td>
+      <td>11</td>
+      <td>4.25</td>
+      <td>False</td>
+      <td>Equilibra classificacao e impacto ofensivo.</td>
+    </tr>
+    <tr>
+      <td>equilibrado</td>
+      <td>2</td>
+      <td>Júnior</td>
+      <td>3.24</td>
+      <td>4</td>
+      <td>15</td>
+      <td>3.25</td>
+      <td>False</td>
+      <td>Equilibra classificacao e impacto ofensivo.</td>
+    </tr>
+    <tr>
+      <td>equilibrado</td>
+      <td>3</td>
+      <td>Hugão</td>
+      <td>2.68</td>
+      <td>4</td>
+      <td>9</td>
+      <td>2.75</td>
+      <td>False</td>
+      <td>Equilibra classificacao e impacto ofensivo.</td>
+    </tr>
+    <tr>
+      <td>equilibrado</td>
+      <td>4</td>
+      <td>Cláudio</td>
+      <td>2.62</td>
+      <td>4</td>
+      <td>10</td>
+      <td>3.00</td>
+      <td>False</td>
+      <td>Equilibra classificacao e impacto ofensivo.</td>
+    </tr>
+    <tr>
+      <td>equilibrado</td>
+      <td>5</td>
+      <td>Vareta</td>
+      <td>2.56</td>
+      <td>4</td>
+      <td>2</td>
+      <td>4.25</td>
+      <td>False</td>
+      <td>Equilibra classificacao e impacto ofensivo.</td>
+    </tr>
+    <tr>
+      <td>equilibrado</td>
+      <td>6</td>
+      <td>Nego</td>
+      <td>2.50</td>
+      <td>4</td>
+      <td>5</td>
+      <td>2.50</td>
+      <td>False</td>
+      <td>Equilibra classificacao e impacto ofensivo.</td>
+    </tr>
+    <tr>
+      <td>equilibrado</td>
+      <td>7</td>
+      <td>Serginho</td>
+      <td>2.34</td>
+      <td>4</td>
+      <td>6</td>
+      <td>2.25</td>
+      <td>False</td>
+      <td>Equilibra classificacao e impacto ofensivo.</td>
+    </tr>
+    <tr>
+      <td>equilibrado</td>
+      <td>8</td>
+      <td>Felipe Fragoso</td>
+      <td>2.34</td>
+      <td>4</td>
+      <td>3</td>
+      <td>3.75</td>
+      <td>False</td>
+      <td>Equilibra classificacao e impacto ofensivo.</td>
+    </tr>
+    <tr>
+      <td>equilibrado</td>
+      <td>9</td>
+      <td>Guila</td>
+      <td>2.26</td>
+      <td>4</td>
+      <td>2</td>
+      <td>2.75</td>
+      <td>False</td>
+      <td>Equilibra classificacao e impacto ofensivo.</td>
+    </tr>
+    <tr>
+      <td>equilibrado</td>
+      <td>10</td>
+      <td>Porpino</td>
+      <td>2.14</td>
+      <td>3</td>
+      <td>6</td>
+      <td>2.33</td>
+      <td>True</td>
+      <td>Equilibra classificacao e impacto ofensivo.</td>
+    </tr>
+  </tbody>
+</table>
+            </section>
+            
+            <section class="card">
+              <h2>Top 10: Agressivo</h2>
+              <p>Maior peso para protagonismo ofensivo.</p>
+              <table class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Modelo</th>
+      <th>Posicao</th>
+      <th>Jogadores</th>
+      <th>Nota_final</th>
+      <th>Jogos_considerados</th>
+      <th>Participacoes_ult4</th>
+      <th>Media_classificacao</th>
+      <th>Amostra_reduzida</th>
+      <th>Descricao_modelo</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>agressivo</td>
+      <td>1</td>
+      <td>Júnior</td>
+      <td>3.34</td>
+      <td>4</td>
+      <td>15</td>
+      <td>3.00</td>
+      <td>False</td>
+      <td>Maior peso para protagonismo ofensivo.</td>
+    </tr>
+    <tr>
+      <td>agressivo</td>
+      <td>2</td>
+      <td>Luquinhas</td>
+      <td>3.08</td>
+      <td>4</td>
+      <td>11</td>
+      <td>3.50</td>
+      <td>False</td>
+      <td>Maior peso para protagonismo ofensivo.</td>
+    </tr>
+    <tr>
+      <td>agressivo</td>
+      <td>3</td>
+      <td>Cláudio</td>
+      <td>2.55</td>
+      <td>4</td>
+      <td>10</td>
+      <td>2.75</td>
+      <td>False</td>
+      <td>Maior peso para protagonismo ofensivo.</td>
+    </tr>
+    <tr>
+      <td>agressivo</td>
+      <td>4</td>
+      <td>Hugão</td>
+      <td>2.52</td>
+      <td>4</td>
+      <td>9</td>
+      <td>2.75</td>
+      <td>False</td>
+      <td>Maior peso para protagonismo ofensivo.</td>
+    </tr>
+    <tr>
+      <td>agressivo</td>
+      <td>5</td>
+      <td>PS</td>
+      <td>2.33</td>
+      <td>4</td>
+      <td>13</td>
+      <td>2.00</td>
+      <td>False</td>
+      <td>Maior peso para protagonismo ofensivo.</td>
+    </tr>
+    <tr>
+      <td>agressivo</td>
+      <td>6</td>
+      <td>Dudu</td>
+      <td>2.26</td>
+      <td>4</td>
+      <td>11</td>
+      <td>2.50</td>
+      <td>False</td>
+      <td>Maior peso para protagonismo ofensivo.</td>
+    </tr>
+    <tr>
+      <td>agressivo</td>
+      <td>7</td>
+      <td>Nego</td>
+      <td>2.19</td>
+      <td>4</td>
+      <td>5</td>
+      <td>2.50</td>
+      <td>False</td>
+      <td>Maior peso para protagonismo ofensivo.</td>
+    </tr>
+    <tr>
+      <td>agressivo</td>
+      <td>8</td>
+      <td>Serginho</td>
+      <td>2.12</td>
+      <td>4</td>
+      <td>6</td>
+      <td>2.25</td>
+      <td>False</td>
+      <td>Maior peso para protagonismo ofensivo.</td>
+    </tr>
+    <tr>
+      <td>agressivo</td>
+      <td>9</td>
+      <td>Porpino</td>
+      <td>2.04</td>
+      <td>3</td>
+      <td>6</td>
+      <td>2.33</td>
+      <td>True</td>
+      <td>Maior peso para protagonismo ofensivo.</td>
+    </tr>
+    <tr>
+      <td>agressivo</td>
+      <td>10</td>
+      <td>Guilherme</td>
+      <td>1.98</td>
+      <td>4</td>
+      <td>7</td>
+      <td>2.50</td>
+      <td>False</td>
+      <td>Maior peso para protagonismo ofensivo.</td>
+    </tr>
+  </tbody>
+</table>
+            </section>
+            
+    </section>
+  </main>
+</body>
+</html>

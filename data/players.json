@@ -1,0 +1,302 @@
+[
+  {
+    "name": "Ivo",
+    "rating": 4,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "Vaca",
+    "rating": 2,
+    "intensity": "LOW",
+    "mensalista": true
+  },
+  {
+    "name": "Caio",
+    "rating": 1,
+    "intensity": "LOW",
+    "mensalista": true
+  },
+  {
+    "name": "Calafa",
+    "rating": 4,
+    "intensity": "LOW",
+    "mensalista": true
+  },
+  {
+    "name": "Daniel",
+    "rating": 3,
+    "intensity": "LOW",
+    "mensalista": true
+  },
+  {
+    "name": "Down",
+    "rating": 3,
+    "intensity": "LOW",
+    "mensalista": true
+  },
+  {
+    "name": "Gabriel de Leon",
+    "rating": 1,
+    "intensity": "HIGH",
+    "mensalista": true
+  },
+  {
+    "name": "Guilherme Figueiredo",
+    "rating": 6,
+    "intensity": "HIGH",
+    "mensalista": true
+  },
+  {
+    "name": "Guila",
+    "rating": 4,
+    "intensity": "LOW",
+    "mensalista": true
+  },
+  {
+    "name": "Hugo",
+    "rating": 5,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "Falcão",
+    "rating": 4,
+    "intensity": "HIGH",
+    "mensalista": true
+  },
+  {
+    "name": "Lucas Souza",
+    "rating": 4,
+    "intensity": "LOW",
+    "mensalista": true
+  },
+  {
+    "name": "Luquinhas",
+    "rating": 6,
+    "intensity": "HIGH",
+    "mensalista": true
+  },
+  {
+    "name": "Nego",
+    "rating": 5,
+    "intensity": "HIGH",
+    "mensalista": true
+  },
+  {
+    "name": "Pato",
+    "rating": 3,
+    "intensity": "LOW",
+    "mensalista": true
+  },
+  {
+    "name": "Paulo Freitas",
+    "rating": 1,
+    "intensity": "LOW",
+    "mensalista": true
+  },
+  {
+    "name": "Arthur Melo",
+    "rating": 2,
+    "intensity": "LOW",
+    "mensalista": false
+  },
+  {
+    "name": "Sammy",
+    "rating": 3,
+    "intensity": "HIGH",
+    "mensalista": true
+  },
+  {
+    "name": "Serginho",
+    "rating": 6,
+    "intensity": "LOW",
+    "mensalista": true
+  },
+  {
+    "name": "SHEIK",
+    "rating": 1,
+    "intensity": "LOW",
+    "mensalista": true
+  },
+  {
+    "name": "PA",
+    "rating": 7,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "Antônio",
+    "rating": 2,
+    "intensity": "LOW",
+    "mensalista": false
+  },
+  {
+    "name": "Dias",
+    "rating": 2,
+    "intensity": "LOW",
+    "mensalista": false
+  },
+  {
+    "name": "Girão",
+    "rating": 3,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "Diogo",
+    "rating": 6,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "Diego Spencer",
+    "rating": 3,
+    "intensity": "LOW",
+    "mensalista": false
+  },
+  {
+    "name": "Davi",
+    "rating": 6,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "ERMÍRIO",
+    "rating": 4,
+    "intensity": "LOW",
+    "mensalista": false
+  },
+  {
+    "name": "Fernando Henrique",
+    "rating": 6,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "Gabriel Lira",
+    "rating": 5,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "Mikhail",
+    "rating": 3,
+    "intensity": "LOW",
+    "mensalista": false
+  },
+  {
+    "name": "Monteiro",
+    "rating": 7,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "Jonas",
+    "rating": 4,
+    "intensity": "LOW",
+    "mensalista": false
+  },
+  {
+    "name": "PAJÉ",
+    "rating": 6,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "Gustavo",
+    "rating": 4,
+    "intensity": "LOW",
+    "mensalista": true
+  },
+  {
+    "name": "Sabugo",
+    "rating": 2,
+    "intensity": "LOW",
+    "mensalista": false
+  },
+  {
+    "name": "Junior",
+    "rating": 5,
+    "intensity": "LOW",
+    "mensalista": false
+  },
+  {
+    "name": "Marcelo Torres",
+    "rating": 4,
+    "intensity": "LOW",
+    "mensalista": false
+  },
+  {
+    "name": "Eduardo Jorge",
+    "rating": 4,
+    "intensity": "LOW",
+    "mensalista": false
+  },
+  {
+    "name": "Vareta",
+    "rating": 2,
+    "intensity": "LOW",
+    "mensalista": true
+  },
+  {
+    "name": "Pedro Alonso",
+    "rating": 3,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "Thiago cruz",
+    "rating": 1,
+    "intensity": "LOW",
+    "mensalista": false
+  },
+  {
+    "name": "David Marques",
+    "rating": 2,
+    "intensity": "LOW",
+    "mensalista": false
+  },
+  {
+    "name": "PS",
+    "rating": 6,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "Felipe Fragoso",
+    "rating": 5,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "Doca",
+    "rating": 4,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "Dudu",
+    "rating": 6,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "Claudio",
+    "rating": 6,
+    "intensity": "HIGH",
+    "mensalista": false
+  },
+  {
+    "name": "Porpino",
+    "rating": 3,
+    "intensity": "LOW",
+    "mensalista": false
+  },
+  {
+    "name": "Guilherme Calafa",
+    "rating": 4,
+    "intensity": "LOW",
+    "mensalista": false
+  }
+]

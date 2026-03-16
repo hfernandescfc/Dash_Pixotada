@@ -1,0 +1,821 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Analise de Efeito por Jogador</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f6f1e8;
+      color: #1f2933;
+    }
+    .wrap {
+      width: min(1280px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 40px;
+    }
+    .hero, .card {
+      background: #fffdf8;
+      border: 1px solid #dccfb8;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 10px 24px rgba(66, 52, 23, 0.06);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .table th, .table td {
+      border-bottom: 1px solid #eadfc9;
+      padding: 10px 8px;
+      text-align: left;
+    }
+    .table th {
+      background: #f6efe2;
+    }
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .nav a {
+      text-decoration: none;
+      color: #1f2933;
+      background: rgba(255,255,255,0.78);
+      border: 1px solid #dccfb8;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>Analise de Efeito dos Jogadores</h1>
+      <p>Impacto bruto = classificacao media das equipes com o jogador.</p>
+      <p>Impacto ajustado = resultado real menos resultado esperado a partir da forca recente do elenco do time em cada data.</p>
+      <p>Esta versao destaca apenas jogadores com pelo menos 4 jogos.</p>
+      <div class="nav">
+        <a href="dashboard_pixotada_2026.html">Dashboard</a>
+        <a href="ranking_modelos_ultimas4.html">Modelos de pontuação</a>
+        <a href="efeito_jogadores.html">Efeito dos jogadores</a>
+        <a href="sugestao_novas_notas.html">Sugestão de notas</a>
+        <a href="detalhe_recomendacoes_notas.html">Detalhe das recomendações</a>
+      </div>
+    </section>
+    <section class="grid">
+      <section class="card">
+        <h2>Top 15 impacto ajustado positivo</h2>
+        <table class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Jogadores</th>
+      <th>Jogos</th>
+      <th>Forca_recente</th>
+      <th>Classificacao_media</th>
+      <th>Expected_points_medios</th>
+      <th>Impacto_bruto</th>
+      <th>Impacto_ajustado</th>
+      <th>Impacto_rank_ajustado</th>
+      <th>Participacoes_media</th>
+      <th>Forca_media_companheiros</th>
+      <th>Forca_media_adversarios</th>
+      <th>Confianca</th>
+      <th>Leitura</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Hugão</td>
+      <td>5</td>
+      <td>2.68</td>
+      <td>3.00</td>
+      <td>1.80</td>
+      <td>3.00</td>
+      <td>1.20</td>
+      <td>1.20</td>
+      <td>2.20</td>
+      <td>1.56</td>
+      <td>1.75</td>
+      <td>Media</td>
+      <td>Impacto positivo provavel</td>
+    </tr>
+    <tr>
+      <td>Guilherme</td>
+      <td>7</td>
+      <td>1.98</td>
+      <td>2.57</td>
+      <td>2.00</td>
+      <td>2.57</td>
+      <td>0.57</td>
+      <td>0.57</td>
+      <td>1.86</td>
+      <td>1.34</td>
+      <td>1.74</td>
+      <td>Media</td>
+      <td>Impacto positivo provavel</td>
+    </tr>
+    <tr>
+      <td>Down</td>
+      <td>9</td>
+      <td>1.74</td>
+      <td>2.78</td>
+      <td>2.22</td>
+      <td>2.78</td>
+      <td>0.56</td>
+      <td>0.56</td>
+      <td>0.89</td>
+      <td>1.73</td>
+      <td>1.75</td>
+      <td>Alta</td>
+      <td>Impacto positivo provavel</td>
+    </tr>
+    <tr>
+      <td>Paulão</td>
+      <td>6</td>
+      <td>0.82</td>
+      <td>2.17</td>
+      <td>1.67</td>
+      <td>2.17</td>
+      <td>0.50</td>
+      <td>0.50</td>
+      <td>0.67</td>
+      <td>1.71</td>
+      <td>1.78</td>
+      <td>Media</td>
+      <td>Impacto positivo provavel</td>
+    </tr>
+    <tr>
+      <td>Felipe Fragoso</td>
+      <td>7</td>
+      <td>2.34</td>
+      <td>3.43</td>
+      <td>3.00</td>
+      <td>3.43</td>
+      <td>0.43</td>
+      <td>0.43</td>
+      <td>0.71</td>
+      <td>1.83</td>
+      <td>1.71</td>
+      <td>Media</td>
+      <td>Impacto positivo provavel</td>
+    </tr>
+    <tr>
+      <td>Doca</td>
+      <td>7</td>
+      <td>0.82</td>
+      <td>2.00</td>
+      <td>1.57</td>
+      <td>2.00</td>
+      <td>0.43</td>
+      <td>0.43</td>
+      <td>1.57</td>
+      <td>1.65</td>
+      <td>1.83</td>
+      <td>Media</td>
+      <td>Impacto positivo provavel</td>
+    </tr>
+    <tr>
+      <td>Daniel</td>
+      <td>12</td>
+      <td>1.06</td>
+      <td>2.50</td>
+      <td>2.08</td>
+      <td>2.50</td>
+      <td>0.42</td>
+      <td>0.42</td>
+      <td>1.08</td>
+      <td>1.68</td>
+      <td>1.72</td>
+      <td>Alta</td>
+      <td>Impacto positivo provavel</td>
+    </tr>
+    <tr>
+      <td>Diogo Girão</td>
+      <td>4</td>
+      <td>1.62</td>
+      <td>2.75</td>
+      <td>2.50</td>
+      <td>2.75</td>
+      <td>0.25</td>
+      <td>0.25</td>
+      <td>0.75</td>
+      <td>1.74</td>
+      <td>1.79</td>
+      <td>Baixa</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+    <tr>
+      <td>Dudu</td>
+      <td>8</td>
+      <td>2.04</td>
+      <td>2.50</td>
+      <td>2.25</td>
+      <td>2.50</td>
+      <td>0.25</td>
+      <td>0.25</td>
+      <td>3.00</td>
+      <td>1.53</td>
+      <td>1.68</td>
+      <td>Alta</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+    <tr>
+      <td>Falcão</td>
+      <td>10</td>
+      <td>1.70</td>
+      <td>3.20</td>
+      <td>3.00</td>
+      <td>3.20</td>
+      <td>0.20</td>
+      <td>0.20</td>
+      <td>1.00</td>
+      <td>1.91</td>
+      <td>1.65</td>
+      <td>Alta</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+    <tr>
+      <td>Sheik</td>
+      <td>5</td>
+      <td>0.94</td>
+      <td>2.40</td>
+      <td>2.20</td>
+      <td>2.40</td>
+      <td>0.20</td>
+      <td>0.20</td>
+      <td>0.20</td>
+      <td>1.76</td>
+      <td>1.82</td>
+      <td>Media</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+    <tr>
+      <td>Lucas</td>
+      <td>9</td>
+      <td>0.84</td>
+      <td>2.11</td>
+      <td>2.00</td>
+      <td>2.11</td>
+      <td>0.11</td>
+      <td>0.11</td>
+      <td>1.11</td>
+      <td>1.59</td>
+      <td>1.69</td>
+      <td>Alta</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+    <tr>
+      <td>Gustavo</td>
+      <td>8</td>
+      <td>1.86</td>
+      <td>2.62</td>
+      <td>2.62</td>
+      <td>2.62</td>
+      <td>0.00</td>
+      <td>0.00</td>
+      <td>1.00</td>
+      <td>1.78</td>
+      <td>1.73</td>
+      <td>Alta</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+    <tr>
+      <td>PS</td>
+      <td>6</td>
+      <td>2.04</td>
+      <td>1.67</td>
+      <td>1.67</td>
+      <td>1.67</td>
+      <td>0.00</td>
+      <td>0.00</td>
+      <td>2.67</td>
+      <td>1.23</td>
+      <td>1.67</td>
+      <td>Media</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+    <tr>
+      <td>Sabugo</td>
+      <td>7</td>
+      <td>0.00</td>
+      <td>1.43</td>
+      <td>1.43</td>
+      <td>1.43</td>
+      <td>0.00</td>
+      <td>0.00</td>
+      <td>0.86</td>
+      <td>1.79</td>
+      <td>1.87</td>
+      <td>Media</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+  </tbody>
+</table>
+      </section>
+      <section class="card">
+        <h2>Top 15 impacto ajustado negativo</h2>
+        <table class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Jogadores</th>
+      <th>Jogos</th>
+      <th>Forca_recente</th>
+      <th>Classificacao_media</th>
+      <th>Expected_points_medios</th>
+      <th>Impacto_bruto</th>
+      <th>Impacto_ajustado</th>
+      <th>Impacto_rank_ajustado</th>
+      <th>Participacoes_media</th>
+      <th>Forca_media_companheiros</th>
+      <th>Forca_media_adversarios</th>
+      <th>Confianca</th>
+      <th>Leitura</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Cláudio</td>
+      <td>4</td>
+      <td>2.62</td>
+      <td>2.75</td>
+      <td>3.50</td>
+      <td>2.75</td>
+      <td>-0.75</td>
+      <td>-0.75</td>
+      <td>2.50</td>
+      <td>1.70</td>
+      <td>1.44</td>
+      <td>Baixa</td>
+      <td>Impacto negativo provavel</td>
+    </tr>
+    <tr>
+      <td>Guila</td>
+      <td>8</td>
+      <td>2.26</td>
+      <td>2.00</td>
+      <td>2.75</td>
+      <td>2.00</td>
+      <td>-0.75</td>
+      <td>-0.75</td>
+      <td>0.88</td>
+      <td>1.65</td>
+      <td>1.73</td>
+      <td>Alta</td>
+      <td>Impacto negativo provavel</td>
+    </tr>
+    <tr>
+      <td>Vareta</td>
+      <td>11</td>
+      <td>2.56</td>
+      <td>2.82</td>
+      <td>3.55</td>
+      <td>2.82</td>
+      <td>-0.73</td>
+      <td>-0.73</td>
+      <td>1.00</td>
+      <td>1.85</td>
+      <td>1.57</td>
+      <td>Alta</td>
+      <td>Impacto negativo provavel</td>
+    </tr>
+    <tr>
+      <td>Luquinhas</td>
+      <td>5</td>
+      <td>3.82</td>
+      <td>3.40</td>
+      <td>4.00</td>
+      <td>3.40</td>
+      <td>-0.60</td>
+      <td>-0.60</td>
+      <td>2.60</td>
+      <td>1.80</td>
+      <td>1.64</td>
+      <td>Media</td>
+      <td>Impacto negativo provavel</td>
+    </tr>
+    <tr>
+      <td>Gabriel</td>
+      <td>5</td>
+      <td>1.06</td>
+      <td>2.00</td>
+      <td>2.40</td>
+      <td>2.00</td>
+      <td>-0.40</td>
+      <td>-0.40</td>
+      <td>1.40</td>
+      <td>1.88</td>
+      <td>1.70</td>
+      <td>Media</td>
+      <td>Impacto negativo provavel</td>
+    </tr>
+    <tr>
+      <td>Júnior</td>
+      <td>8</td>
+      <td>3.24</td>
+      <td>2.88</td>
+      <td>3.25</td>
+      <td>2.88</td>
+      <td>-0.38</td>
+      <td>-0.38</td>
+      <td>3.75</td>
+      <td>1.62</td>
+      <td>1.64</td>
+      <td>Alta</td>
+      <td>Impacto negativo provavel</td>
+    </tr>
+    <tr>
+      <td>Calafa</td>
+      <td>9</td>
+      <td>0.48</td>
+      <td>1.67</td>
+      <td>2.00</td>
+      <td>1.67</td>
+      <td>-0.33</td>
+      <td>-0.33</td>
+      <td>0.89</td>
+      <td>1.65</td>
+      <td>1.72</td>
+      <td>Alta</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+    <tr>
+      <td>Nego</td>
+      <td>9</td>
+      <td>2.50</td>
+      <td>2.22</td>
+      <td>2.56</td>
+      <td>2.22</td>
+      <td>-0.33</td>
+      <td>-0.33</td>
+      <td>1.56</td>
+      <td>1.53</td>
+      <td>1.67</td>
+      <td>Alta</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+    <tr>
+      <td>Caio</td>
+      <td>12</td>
+      <td>1.88</td>
+      <td>2.17</td>
+      <td>2.42</td>
+      <td>2.17</td>
+      <td>-0.25</td>
+      <td>-0.25</td>
+      <td>0.92</td>
+      <td>1.64</td>
+      <td>1.68</td>
+      <td>Alta</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+    <tr>
+      <td>Fuinha</td>
+      <td>9</td>
+      <td>1.92</td>
+      <td>3.00</td>
+      <td>3.22</td>
+      <td>3.00</td>
+      <td>-0.22</td>
+      <td>-0.22</td>
+      <td>0.67</td>
+      <td>1.92</td>
+      <td>1.62</td>
+      <td>Alta</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+    <tr>
+      <td>Pato</td>
+      <td>5</td>
+      <td>1.24</td>
+      <td>2.20</td>
+      <td>2.40</td>
+      <td>2.20</td>
+      <td>-0.20</td>
+      <td>-0.20</td>
+      <td>0.40</td>
+      <td>1.62</td>
+      <td>1.77</td>
+      <td>Media</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+    <tr>
+      <td>Serginho</td>
+      <td>6</td>
+      <td>2.34</td>
+      <td>2.33</td>
+      <td>2.50</td>
+      <td>2.33</td>
+      <td>-0.17</td>
+      <td>-0.17</td>
+      <td>1.50</td>
+      <td>1.64</td>
+      <td>1.75</td>
+      <td>Media</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+    <tr>
+      <td>Gustavo</td>
+      <td>8</td>
+      <td>1.86</td>
+      <td>2.62</td>
+      <td>2.62</td>
+      <td>2.62</td>
+      <td>0.00</td>
+      <td>0.00</td>
+      <td>1.00</td>
+      <td>1.78</td>
+      <td>1.73</td>
+      <td>Alta</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+    <tr>
+      <td>PS</td>
+      <td>6</td>
+      <td>2.04</td>
+      <td>1.67</td>
+      <td>1.67</td>
+      <td>1.67</td>
+      <td>0.00</td>
+      <td>0.00</td>
+      <td>2.67</td>
+      <td>1.23</td>
+      <td>1.67</td>
+      <td>Media</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+    <tr>
+      <td>Sabugo</td>
+      <td>7</td>
+      <td>0.00</td>
+      <td>1.43</td>
+      <td>1.43</td>
+      <td>1.43</td>
+      <td>0.00</td>
+      <td>0.00</td>
+      <td>0.86</td>
+      <td>1.79</td>
+      <td>1.87</td>
+      <td>Media</td>
+      <td>Neutro ou inconclusivo</td>
+    </tr>
+  </tbody>
+</table>
+      </section>
+      <section class="card">
+        <h2>Duplas com sinergia positiva</h2>
+        <table class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Jogador_A</th>
+      <th>Jogador_B</th>
+      <th>Jogos_juntos</th>
+      <th>Sinergia_media</th>
+      <th>Classificacao_media</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Doca</td>
+      <td>Hugão</td>
+      <td>2</td>
+      <td>1.50</td>
+      <td>2.50</td>
+    </tr>
+    <tr>
+      <td>Down</td>
+      <td>Dudu</td>
+      <td>2</td>
+      <td>1.50</td>
+      <td>2.50</td>
+    </tr>
+    <tr>
+      <td>Down</td>
+      <td>Hugão</td>
+      <td>2</td>
+      <td>1.50</td>
+      <td>4.00</td>
+    </tr>
+    <tr>
+      <td>Dudu</td>
+      <td>Sabugo</td>
+      <td>2</td>
+      <td>1.50</td>
+      <td>2.50</td>
+    </tr>
+    <tr>
+      <td>Hugão</td>
+      <td>Sabugo</td>
+      <td>2</td>
+      <td>1.50</td>
+      <td>2.50</td>
+    </tr>
+    <tr>
+      <td>Doca</td>
+      <td>Down</td>
+      <td>3</td>
+      <td>1.33</td>
+      <td>2.33</td>
+    </tr>
+    <tr>
+      <td>Down</td>
+      <td>Sabugo</td>
+      <td>3</td>
+      <td>1.00</td>
+      <td>2.00</td>
+    </tr>
+    <tr>
+      <td>Falcão</td>
+      <td>Felipe Fragoso</td>
+      <td>3</td>
+      <td>1.00</td>
+      <td>4.00</td>
+    </tr>
+    <tr>
+      <td>Daniel</td>
+      <td>Diogo</td>
+      <td>2</td>
+      <td>1.00</td>
+      <td>3.50</td>
+    </tr>
+    <tr>
+      <td>Daniel</td>
+      <td>Down</td>
+      <td>2</td>
+      <td>1.00</td>
+      <td>2.00</td>
+    </tr>
+    <tr>
+      <td>Daniel</td>
+      <td>Felipe Fragoso</td>
+      <td>2</td>
+      <td>1.00</td>
+      <td>3.00</td>
+    </tr>
+    <tr>
+      <td>Daniel</td>
+      <td>Sheik</td>
+      <td>2</td>
+      <td>1.00</td>
+      <td>3.50</td>
+    </tr>
+    <tr>
+      <td>Down</td>
+      <td>Fuinha</td>
+      <td>2</td>
+      <td>1.00</td>
+      <td>3.50</td>
+    </tr>
+    <tr>
+      <td>Dudu</td>
+      <td>Gustavo</td>
+      <td>2</td>
+      <td>1.00</td>
+      <td>3.00</td>
+    </tr>
+    <tr>
+      <td>Nego</td>
+      <td>Paulão</td>
+      <td>2</td>
+      <td>1.00</td>
+      <td>2.50</td>
+    </tr>
+  </tbody>
+</table>
+      </section>
+      <section class="card">
+        <h2>Duplas com sinergia negativa</h2>
+        <table class="dataframe table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Jogador_A</th>
+      <th>Jogador_B</th>
+      <th>Jogos_juntos</th>
+      <th>Sinergia_media</th>
+      <th>Classificacao_media</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Calafa</td>
+      <td>Porpino</td>
+      <td>2</td>
+      <td>-2.00</td>
+      <td>1.50</td>
+    </tr>
+    <tr>
+      <td>Guila</td>
+      <td>Vareta</td>
+      <td>2</td>
+      <td>-2.00</td>
+      <td>1.00</td>
+    </tr>
+    <tr>
+      <td>Porpino</td>
+      <td>Vareta</td>
+      <td>2</td>
+      <td>-2.00</td>
+      <td>1.50</td>
+    </tr>
+    <tr>
+      <td>Cláudio</td>
+      <td>Nego</td>
+      <td>2</td>
+      <td>-1.50</td>
+      <td>2.00</td>
+    </tr>
+    <tr>
+      <td>Gabriel</td>
+      <td>Júnior</td>
+      <td>2</td>
+      <td>-1.50</td>
+      <td>2.00</td>
+    </tr>
+    <tr>
+      <td>Gabriel</td>
+      <td>Vareta</td>
+      <td>2</td>
+      <td>-1.50</td>
+      <td>2.00</td>
+    </tr>
+    <tr>
+      <td>Lucas</td>
+      <td>Luquinhas</td>
+      <td>2</td>
+      <td>-1.50</td>
+      <td>2.50</td>
+    </tr>
+    <tr>
+      <td>Calafa</td>
+      <td>Vareta</td>
+      <td>3</td>
+      <td>-1.33</td>
+      <td>2.00</td>
+    </tr>
+    <tr>
+      <td>Caio</td>
+      <td>Nego</td>
+      <td>3</td>
+      <td>-1.00</td>
+      <td>1.67</td>
+    </tr>
+    <tr>
+      <td>Calafa</td>
+      <td>Nego</td>
+      <td>3</td>
+      <td>-1.00</td>
+      <td>1.33</td>
+    </tr>
+    <tr>
+      <td>Guila</td>
+      <td>Sabugo</td>
+      <td>3</td>
+      <td>-1.00</td>
+      <td>1.00</td>
+    </tr>
+    <tr>
+      <td>Calafa</td>
+      <td>Falcão</td>
+      <td>2</td>
+      <td>-1.00</td>
+      <td>1.00</td>
+    </tr>
+    <tr>
+      <td>Cláudio</td>
+      <td>Porpino</td>
+      <td>2</td>
+      <td>-1.00</td>
+      <td>3.00</td>
+    </tr>
+    <tr>
+      <td>Cláudio</td>
+      <td>Vareta</td>
+      <td>2</td>
+      <td>-1.00</td>
+      <td>2.50</td>
+    </tr>
+    <tr>
+      <td>Doca</td>
+      <td>Guila</td>
+      <td>2</td>
+      <td>-1.00</td>
+      <td>1.50</td>
+    </tr>
+  </tbody>
+</table>
+      </section>
+    </section>
+  </main>
+</body>
+</html>
