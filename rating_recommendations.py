@@ -15,7 +15,6 @@ PUBLIC_DIR = BASE_DIR / "pixotada_public_site"
 
 ACTUAL_POINTS = {"Campeao": 4, "Segundo": 3, "Terceiro": 2, "Lanterna": 1}
 EXPECTED_POINTS_MAP = {1.0: 4, 2.0: 3, 3.0: 2, 4.0: 1}
-NEUTRAL_RATING = 4
 
 ALIASES = {
     "gabriel de leon": "Fuinha",
@@ -49,9 +48,9 @@ def load_players() -> pd.DataFrame:
     return players_df
 
 
-def build_recent_form(df: pd.DataFrame, eligible_names: list[str]) -> pd.DataFrame:
+def build_recent_form(df: pd.DataFrame, player_names: list[str]) -> pd.DataFrame:
     recent4 = (
-        df[df["Jogadores"].isin(eligible_names)]
+        df[df["Jogadores"].isin(player_names)]
         .sort_values(["Jogadores", "Data"], ascending=[True, False])
         .assign(Recencia=lambda x: x.groupby("Jogadores").cumcount() + 1)
         .loc[lambda x: x["Recencia"] <= 4]
@@ -64,15 +63,16 @@ def build_recent_form(df: pd.DataFrame, eligible_names: list[str]) -> pd.DataFra
     return ranking
 
 
-def build_adjusted_impact(df: pd.DataFrame, ratings_map: dict[str, int]) -> pd.DataFrame:
+def build_adjusted_impact(df: pd.DataFrame, strength_map: dict[str, float]) -> pd.DataFrame:
     data = df.copy()
-    data["rating_base"] = data["Jogadores"].map(ratings_map).fillna(NEUTRAL_RATING)
+    # Expected team strength is based on observed recent form, not current stars.
+    data["forca_observada"] = data["Jogadores"].map(strength_map).fillna(0)
     data["actual_points"] = data["classificacao_norm"].map(ACTUAL_POINTS)
 
     team_strength = (
         data.groupby(["Data", "Time"], as_index=False)
         .agg(
-            team_strength=("rating_base", "sum"),
+            team_strength=("forca_observada", "sum"),
             actual_points=("actual_points", "first"),
             classificacao=("classificacao_norm", "first"),
         )
@@ -112,15 +112,18 @@ def suggest_row(row: pd.Series) -> tuple[int, str, str]:
 
     strong_up = impact >= 0.5 and position >= 10
     moderate_up = impact >= 0.25 and position >= 14
-    strong_down = impact <= -0.5 and position <= 10
-    moderate_down = impact <= -0.35 and position <= 6
+    # If the player is underperforming versus expectation, allow a downgrade
+    # either because he is still ranking high individually or because the
+    # observed collective signal is strongly negative.
+    strong_down = impact <= -0.75 or (impact <= -0.5 and position <= 10)
+    moderate_down = impact <= -0.5 and current >= 4
 
     if strong_up or moderate_up:
         new_rating = min(7, current + 1)
         reason = (
             f"Jogou {int(jogos)} vezes nas ultimas 6, somou {int(participacoes)} participacoes, "
             f"mas ainda assim ficou apenas na posicao {int(position)} do desempenho recente. "
-            f"O impacto ajustado de {impact:.2f} sugere que seus times renderam acima do esperado para a nota atual."
+            f"O impacto ajustado de {impact:.2f} sugere que seus times renderam acima do esperado pela forca recente observada."
         )
         return new_rating, "subir", reason
 
@@ -128,7 +131,7 @@ def suggest_row(row: pd.Series) -> tuple[int, str, str]:
         new_rating = max(1, current - 1)
         reason = (
             f"Jogou {int(jogos)} vezes nas ultimas 6, ficou na posicao {int(position)} do desempenho recente, "
-            f"mas o impacto ajustado foi {impact:.2f}, indicando que seus times renderam abaixo do esperado para a nota atual."
+            f"mas o impacto ajustado foi {impact:.2f}, indicando que seus times renderam abaixo do esperado pela forca recente observada."
         )
         return new_rating, "descer", reason
 
@@ -204,7 +207,7 @@ def build_html(df: pd.DataFrame) -> str:
   <main class="wrap">
     <section class="hero">
       <h1>Sugestao de Novas Notas</h1>
-      <p>Expectativa refinada usando as notas atuais do players.json para estimar a forca dos times nas ultimas 6 peladas.</p>
+      <p>Expectativa refinada usando scouts e classificacao recente para estimar a forca observada dos times nas ultimas 6 peladas.</p>
       <p>So entram como evidência de ajuste os jogadores com pelo menos 3 jogos nesse recorte.</p>
       <div class="nav">
         <a href="dashboard_pixotada_2026.html">Dashboard</a>
@@ -232,13 +235,12 @@ def main() -> None:
     recent_df = scout_df[scout_df["Data"].isin(last6_dates)].copy()
 
     players_df = load_players()
-    ratings_map = dict(zip(players_df["scout_name"], players_df["rating"]))
-
     games_count = recent_df.groupby("Jogadores").size().rename("Jogos_ult6").reset_index()
     eligible_names = games_count.loc[games_count["Jogos_ult6"] >= 3, "Jogadores"].tolist()
+    all_recent_names = sorted(recent_df["Jogadores"].drop_duplicates().tolist())
 
-    recent_form = build_recent_form(recent_df, eligible_names)
-    adjusted = build_adjusted_impact(recent_df, ratings_map)
+    recent_form = build_recent_form(recent_df, all_recent_names)
+    adjusted = build_adjusted_impact(recent_df, dict(zip(recent_form["Jogadores"], recent_form["Nota_final"])))
 
     result = players_df.merge(
         recent_form[

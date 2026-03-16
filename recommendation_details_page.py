@@ -5,7 +5,6 @@ import pandas as pd
 
 from pixotada_dashboard import load_data
 from rating_recommendations import (
-    PLAYERS_FILE,
     OUTPUT_DIR,
     PUBLIC_DIR,
     load_players,
@@ -27,13 +26,13 @@ def compute_base():
     recent_df = scout_df[scout_df["Data"].isin(last6_dates)].copy()
 
     players_df = load_players()
-    ratings_map = dict(zip(players_df["scout_name"], players_df["rating"]))
 
     games_count = recent_df.groupby("Jogadores").size().rename("Jogos_ult6").reset_index()
-    eligible_names = games_count.loc[games_count["Jogos_ult6"] >= 3, "Jogadores"].tolist()
+    all_recent_names = sorted(recent_df["Jogadores"].drop_duplicates().tolist())
 
-    recent_form = build_recent_form(recent_df, eligible_names)
-    adjusted = build_adjusted_impact(recent_df, ratings_map)
+    recent_form = build_recent_form(recent_df, all_recent_names)
+    strength_map = dict(zip(recent_form["Jogadores"], recent_form["Nota_final"]))
+    adjusted = build_adjusted_impact(recent_df, strength_map)
 
     result = players_df.merge(
         recent_form[
@@ -60,12 +59,12 @@ def compute_base():
     suggestions = result.apply(suggest_row, axis=1, result_type="expand")
     suggestions.columns = ["nova_nota_sugerida", "sinal", "justificativa"]
     result = pd.concat([result, suggestions], axis=1)
-    return scout_df, recent_df, players_df, ratings_map, result, last6_dates
+    return scout_df, recent_df, players_df, strength_map, result, last6_dates
 
 
-def build_match_details(recent_df: pd.DataFrame, ratings_map: dict[str, int]) -> pd.DataFrame:
+def build_match_details(recent_df: pd.DataFrame, strength_map: dict[str, float]) -> pd.DataFrame:
     data = recent_df.copy()
-    data["rating_base"] = data["Jogadores"].map(ratings_map).fillna(4)
+    data["rating_base"] = data["Jogadores"].map(strength_map).fillna(0)
     data["actual_points"] = data["classificacao_norm"].map(CLASS_POINTS)
 
     team_strength = (
@@ -346,7 +345,7 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
       <h1>Detalhamento das Recomendações de Nota</h1>
       <p>Esta página mostra, jogador por jogador, como a recomendação foi construída a partir das últimas 6 peladas.</p>
       <p>Janela analisada: {last6_str}.</p>
-      <p>A expectativa do time foi refinada usando as notas atuais do <code>players.json</code>.</p>
+      <p>A expectativa do time foi refinada usando scouts e classificação recente observada.</p>
       <div class="nav">
         <a href="dashboard_pixotada_2026.html">Dashboard</a>
         <a href="ranking_modelos_ultimas4.html">Modelos de pontuação</a>
@@ -432,7 +431,7 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
             <div class="mini"><span>Participações</span><strong>${{match.Participacoes}}</strong></div>
             <div class="mini"><span>Pontos reais / esperados</span><strong>${{match.Pontos_reais}} / ${{match.Pontos_esperados}}</strong></div>
             <div class="mini"><span>Força do time</span><strong>${{match.Forca_time.toFixed(2)}}</strong></div>
-            <div class="mini"><span>Média de nota do time</span><strong>${{match.Media_nota_time.toFixed(2)}}</strong></div>
+            <div class="mini"><span>Média de força observada</span><strong>${{match.Media_nota_time.toFixed(2)}}</strong></div>
           </div>
           <div class="people"><strong>Companheiros</strong>${{match.Companheiros.join(', ') || '—'}}</div>
           <div class="people" style="margin-top:8px;"><strong>Adversários</strong>${{match.Adversarios.join(', ') || '—'}}</div>
