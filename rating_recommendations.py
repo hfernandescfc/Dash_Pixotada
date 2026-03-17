@@ -1,9 +1,9 @@
 from pathlib import Path
 import json
-import unicodedata
 
 import pandas as pd
 
+import aliases as alias_lib
 from pixotada_dashboard import load_data
 from pixotada_scores import MODELS, score_model
 
@@ -43,8 +43,8 @@ def normalize_name(value: str) -> str:
 def load_players() -> pd.DataFrame:
     players = json.loads(PLAYERS_FILE.read_text(encoding="utf-8-sig"))
     players_df = pd.DataFrame(players)
-    players_df["name_norm"] = players_df["name"].map(normalize_name)
-    players_df["scout_name"] = players_df["name_norm"].map(ALIASES).fillna(players_df["name"])
+    players_df["name_norm"] = players_df["name"].map(alias_lib.normalize_name)
+    players_df["scout_name"] = players_df["name_norm"].map(alias_lib.ALIASES).fillna(players_df["name"])
     return players_df
 
 

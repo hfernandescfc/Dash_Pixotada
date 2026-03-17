@@ -7,6 +7,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.offline import get_plotlyjs
 
+import aliases as alias_lib
+
 
 BASE_DIR = Path(r"c:\Users\compesa\Desktop")
 INPUT_FILE = BASE_DIR / "SCOUTS PIXOTADA 2026 - BASE.csv"
@@ -59,8 +61,8 @@ def normalize_text(value: str) -> str:
 def load_players() -> pd.DataFrame:
     players = json.loads(PLAYERS_FILE.read_text(encoding="utf-8-sig"))
     players_df = pd.DataFrame(players)
-    players_df["name_norm"] = players_df["name"].map(normalize_text)
-    players_df["scout_name"] = players_df["name_norm"].map(ALIASES).fillna(players_df["name"])
+    players_df["name_norm"] = players_df["name"].map(alias_lib.normalize_name)
+    players_df["scout_name"] = players_df["name_norm"].map(alias_lib.ALIASES).fillna(players_df["name"])
     return players_df
 
 
@@ -70,6 +72,12 @@ def load_data() -> pd.DataFrame:
     # The last column is the ranking label, but its header may arrive mangled.
     df = df.rename(columns={df.columns[-1]: "classificacao"})
 
+    df["Jogadores"] = (
+        df["Jogadores"]
+        .astype(str)
+        .str.strip()
+        .map(lambda value: alias_lib.ALIASES.get(alias_lib.normalize_name(value), value))
+    )
     df["Data"] = pd.to_datetime(df["Data"], dayfirst=True)
     df["mes"] = df["Data"].dt.strftime("%Y-%m")
     df["participacoes"] = df["Gol"] + df["Assist"]
@@ -735,21 +743,24 @@ def build_last4_cards(last4: pd.DataFrame) -> str:
 
 def build_dashboard(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> str:
     summary_df = summaries["resumo_jogadores"]
+    eligible_players = summary_df.loc[summary_df["Jogos"] >= 4, "Jogadores"]
+    chart_summary_df = summary_df.loc[summary_df["Jogadores"].isin(eligible_players)].copy()
+    chart_df = df.loc[df["Jogadores"].isin(eligible_players)].copy()
     players_df = load_players()
     last4_cards = build_last4_cards(summaries["ultimas_4_datas"])
 
     figures = [
-        overall_bar(summary_df, "Gols", "N\u00famero de gols por jogador", "#c0392b", "Gols"),
-        overall_bar(summary_df, "Assistencias", "N\u00famero de assist\u00eancias por jogador", "#2980b9", "Assist\u00eancias"),
-        overall_bar(summary_df, "Participacoes", "Total de participa\u00e7\u00f5es em gol por jogador", "#16a085", "Participa\u00e7\u00f5es"),
-        offensive_participation_blob_chart(df, players_df),
-        classification_games_adjusted_chart(df),
-        monthly_player_bar(df),
-        top10_bar(summary_df, "Gols", "Top 10 de gols", "#c0392b", "Gols"),
-        top10_bar(summary_df, "Assistencias", "Top 10 de assist\u00eancias", "#2980b9", "Assist\u00eancias"),
-        top10_bar(summary_df, "Participacoes", "Top 10 de participa\u00e7\u00f5es em gol", "#16a085", "Participa\u00e7\u00f5es"),
-        top10_bar(summary_df, "Amarelos", "Top 10 de cart\u00f5es amarelos", "#f1c40f", "Amarelos"),
-        top10_bar(summary_df, "Vermelhos", "Top 10 de cart\u00f5es vermelhos", "#7f1d1d", "Vermelhos"),
+        overall_bar(chart_summary_df, "Gols", "N\u00famero de gols por jogador", "#c0392b", "Gols"),
+        overall_bar(chart_summary_df, "Assistencias", "N\u00famero de assist\u00eancias por jogador", "#2980b9", "Assist\u00eancias"),
+        overall_bar(chart_summary_df, "Participacoes", "Total de participa\u00e7\u00f5es em gol por jogador", "#16a085", "Participa\u00e7\u00f5es"),
+        offensive_participation_blob_chart(chart_df, players_df),
+        classification_games_adjusted_chart(chart_df),
+        monthly_player_bar(chart_df),
+        top10_bar(chart_summary_df, "Gols", "Top 10 de gols", "#c0392b", "Gols"),
+        top10_bar(chart_summary_df, "Assistencias", "Top 10 de assist\u00eancias", "#2980b9", "Assist\u00eancias"),
+        top10_bar(chart_summary_df, "Participacoes", "Top 10 de participa\u00e7\u00f5es em gol", "#16a085", "Participa\u00e7\u00f5es"),
+        top10_bar(chart_summary_df, "Amarelos", "Top 10 de cart\u00f5es amarelos", "#f1c40f", "Amarelos"),
+        top10_bar(chart_summary_df, "Vermelhos", "Top 10 de cart\u00f5es vermelhos", "#7f1d1d", "Vermelhos"),
     ]
 
     cards = []
