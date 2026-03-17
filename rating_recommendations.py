@@ -282,6 +282,10 @@ def suggest_row(row: pd.Series) -> tuple[int, str, str]:
 
 def build_html(df: pd.DataFrame) -> str:
     table = df.copy()
+    table["tem_mudanca"] = (
+        table["sinal"].fillna("manter").ne("manter")
+        | table["nova_nota_sugerida"].fillna(table["nota_atual"]).ne(table["nota_atual"])
+    )
     numeric_cols = [
         "Impacto_ajustado",
         "participacao_real_pg",
@@ -290,6 +294,17 @@ def build_html(df: pd.DataFrame) -> str:
     ]
     for col in numeric_cols:
         table[col] = table[col].map(lambda x: "" if pd.isna(x) else f"{x:.2f}")
+    rows_html = []
+    columns = table.columns.tolist()
+    display_columns = [col for col in columns if col != "tem_mudanca"]
+
+    for _, row in table.iterrows():
+        row_class = "has-change" if bool(row["tem_mudanca"]) else "no-change"
+        cells = "".join(f"<td>{row[col]}</td>" for col in display_columns)
+        rows_html.append(f'<tr class="{row_class}">{cells}</tr>')
+
+    header_html = "".join(f"<th>{col}</th>" for col in display_columns)
+    body_html = "\n".join(rows_html)
     return f"""
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -344,6 +359,32 @@ def build_html(df: pd.DataFrame) -> str:
       border-radius: 999px;
       font-weight: 600;
     }}
+    .controls {{
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }}
+    .toggle {{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }}
+    .toggle input {{
+      width: 16px;
+      height: 16px;
+      accent-color: #1e8449;
+    }}
+    .helper {{
+      color: #5b6673;
+      font-size: 14px;
+    }}
+    body.only-changes .table tbody tr.no-change {{
+      display: none;
+    }}
   </style>
 </head>
 <body>
@@ -361,9 +402,29 @@ def build_html(df: pd.DataFrame) -> str:
       </div>
     </section>
     <section class="card" style="margin-top:20px;">
-      {table.to_html(index=False, classes="table", border=0)}
+      <div class="controls">
+        <label class="toggle" for="onlyChanges">
+          <input id="onlyChanges" type="checkbox">
+          Mostrar apenas jogadores com sugestão de mudança
+        </label>
+        <span class="helper">O filtro esconde recomendações de manter nota.</span>
+      </div>
+      <table class="table">
+        <thead>
+          <tr>{header_html}</tr>
+        </thead>
+        <tbody>
+          {body_html}
+        </tbody>
+      </table>
     </section>
   </main>
+  <script>
+    const onlyChanges = document.getElementById("onlyChanges");
+    onlyChanges.addEventListener("change", () => {{
+      document.body.classList.toggle("only-changes", onlyChanges.checked);
+    }});
+  </script>
 </body>
 </html>
 """
