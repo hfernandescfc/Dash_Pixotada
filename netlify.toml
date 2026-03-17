@@ -1,0 +1,27 @@
+[build]
+publish = "."
+
+[[redirects]]
+from = "/dashboard"
+to = "/dashboard_pixotada_2026.html"
+status = 301
+
+[[redirects]]
+from = "/ranking"
+to = "/ranking_modelos_ultimas4.html"
+status = 301
+
+[[redirects]]
+from = "/efeito"
+to = "/efeito_jogadores.html"
+status = 301
+
+[[redirects]]
+from = "/sugestao-notas"
+to = "/sugestao_novas_notas.html"
+status = 301
+
+[[redirects]]
+from = "/detalhe-notas"
+to = "/detalhe_recomendacoes_notas.html"
+status = 301

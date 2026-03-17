@@ -1,22 +1,32 @@
 # Dash Pixotada
 
-Dashboard e análises da Pixotada 2026.
+Dashboard e analises da Pixotada 2026.
 
-## Publicação
+## Publicacao
 
-O repositório está preparado para publicação automática no GitHub Pages via GitHub Actions.
+O projeto pode ser publicado como site estatico no Netlify sem etapa de build.
 
-URL esperada após ativação do Pages:
+Fluxo mais simples:
 
-- `https://hfernandescfc.github.io/Dash_Pixotada/`
+1. Atualize os HTMLs rodando os scripts Python localmente.
+2. Suba este repositorio no Netlify.
+3. Use a raiz do repositorio como publish directory.
 
-## Conteúdo
+O arquivo `netlify.toml` configura:
+
+- `publish = "."`
+- atalhos para `/dashboard`, `/ranking`, `/efeito`, `/sugestao-notas` e `/detalhe-notas`
+
+Tambem da para fazer deploy manual por drag-and-drop da pasta do projeto, desde que os HTMLs ja estejam atualizados.
+
+## Conteudo
 
 - `index.html`: dashboard principal
-- `ranking_modelos_ultimas4.html`: comparação dos modelos de pontuação
-- `efeito_jogadores.html`: análise de efeito ajustado dos jogadores
-- `sugestao_novas_notas.html`: sugestão de novas notas a partir do `players.json`
-- `detalhe_recomendacoes_notas.html`: detalhamento partida a partida das recomendações
+- `dashboard_pixotada_2026.html`: dashboard principal em rota explicita
+- `ranking_modelos_ultimas4.html`: comparacao dos modelos de pontuacao
+- `efeito_jogadores.html`: analise de efeito ajustado dos jogadores
+- `sugestao_novas_notas.html`: sugestao de novas notas a partir do `players.json`
+- `detalhe_recomendacoes_notas.html`: detalhamento partida a partida das recomendacoes
 
 ## Dados usados
 
@@ -31,6 +41,6 @@ URL esperada após ativação do Pages:
 - `rating_recommendations.py`
 - `recommendation_details_page.py`
 
-## Observação
+## Observacao
 
-Os HTMLs já estão gerados e podem ser abertos diretamente no navegador.
+Os HTMLs ja estao gerados e podem ser abertos diretamente no navegador.
