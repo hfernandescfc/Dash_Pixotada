@@ -10,6 +10,7 @@ from plotly.offline import get_plotlyjs
 
 BASE_DIR = Path(r"c:\Users\compesa\Desktop")
 INPUT_FILE = BASE_DIR / "SCOUTS PIXOTADA 2026 - BASE.csv"
+PLAYERS_FILE = BASE_DIR / "Peladapp" / "players.json"
 OUTPUT_DIR = BASE_DIR / "pixotada_2026_dashboard"
 PUBLIC_DIR = BASE_DIR / "pixotada_public_site"
 
@@ -27,6 +28,24 @@ POSITION_COLORS = {
     "Campeao": "#1e8449",
 }
 
+ALIASES = {
+    "gabriel de leon": "Fuinha",
+    "gabriel lira": "Gabriel",
+    "guilherme figueiredo": "Guilherme",
+    "guilherme calafa": "Calafa",
+    "hugo": "Hugão",
+    "lucas souza": "Lucas",
+    "paulo freitas": "Paulão",
+    "sheik": "Sheik",
+    "girao": "Diogo Girão",
+    "junior": "Júnior",
+    "marcelo torres": "Marcelo",
+    "claudio": "Cláudio",
+    "thiago cruz": "Thiaguinho",
+    "eduardo jorge": "JG",
+    "davi": "David Marques",
+}
+
 
 def normalize_text(value: str) -> str:
     if pd.isna(value):
@@ -35,6 +54,14 @@ def normalize_text(value: str) -> str:
     text = unicodedata.normalize("NFKD", text)
     text = "".join(char for char in text if not unicodedata.combining(char))
     return text
+
+
+def load_players() -> pd.DataFrame:
+    players = json.loads(PLAYERS_FILE.read_text(encoding="utf-8-sig"))
+    players_df = pd.DataFrame(players)
+    players_df["name_norm"] = players_df["name"].map(normalize_text)
+    players_df["scout_name"] = players_df["name_norm"].map(ALIASES).fillna(players_df["name"])
+    return players_df
 
 
 def load_data() -> pd.DataFrame:
@@ -207,6 +234,358 @@ def classification_chart(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
+def classification_participation_adjusted_chart(df: pd.DataFrame) -> go.Figure:
+    order = player_order(df)
+    chart_df = (
+        df.groupby(["Jogadores", "classificacao_norm"], as_index=False)
+        .agg(
+            Participacoes_ajustadas=("participacoes", "sum"),
+            Jogos=("Data", "count"),
+            Media_participacoes=("participacoes", "mean"),
+        )
+        .assign(
+            Classificacao=lambda x: x["classificacao_norm"].map(POSITION_LABELS),
+            Hover_media=lambda x: x["Media_participacoes"].map(lambda value: f"{value:.2f}"),
+        )
+    )
+
+    fig = px.bar(
+        chart_df,
+        x="Jogadores",
+        y="Participacoes_ajustadas",
+        color="Classificacao",
+        category_orders={
+            "Jogadores": order,
+            "Classificacao": [POSITION_LABELS[key] for key in POSITION_ORDER],
+        },
+        color_discrete_map={POSITION_LABELS[key]: value for key, value in POSITION_COLORS.items()},
+        custom_data=["Jogos", "Hover_media"],
+        title="Distribuição de posição por jogador ajustada por participações",
+    )
+    fig.update_traces(
+        hovertemplate=(
+            "Jogador: %{x}<br>"
+            "Posição: %{fullData.name}<br>"
+            "Participações acumuladas: %{y}<br>"
+            "Jogos nessa posição: %{customdata[0]}<br>"
+            "Média de participações/jogo: %{customdata[1]}<extra></extra>"
+        )
+    )
+    fig.update_layout(
+        template="plotly_white",
+        barmode="stack",
+        height=620,
+        margin=dict(l=40, r=20, t=70, b=160),
+        xaxis_title="Jogador",
+        yaxis_title="Participações em jogos daquela posição",
+        xaxis_tickangle=-45,
+        legend_title="Posição",
+    )
+    return fig
+
+
+def classification_chart_switcher(df: pd.DataFrame) -> go.Figure:
+    order = player_order(df)
+    count_df = (
+        df.pivot_table(
+            index="Jogadores",
+            columns="classificacao_norm",
+            values="Data",
+            aggfunc="count",
+            fill_value=0,
+        )
+        .reindex(index=order, columns=POSITION_ORDER, fill_value=0)
+        .reset_index()
+    )
+    adjusted_df = (
+        df.pivot_table(
+            index="Jogadores",
+            columns="classificacao_norm",
+            values="participacoes",
+            aggfunc="sum",
+            fill_value=0,
+        )
+        .reindex(index=order, columns=POSITION_ORDER, fill_value=0)
+        .reset_index()
+    )
+
+    media_df = adjusted_df.copy()
+    for position in POSITION_ORDER:
+        jogos = count_df[position].astype(float)
+        media_df[position] = (adjusted_df[position] / jogos.where(jogos > 0)).fillna(0.0)
+
+    fig = go.Figure()
+    for position in POSITION_ORDER:
+        label = POSITION_LABELS[position]
+        fig.add_trace(
+            go.Bar(
+                x=order,
+                y=count_df[position],
+                name=label,
+                marker_color=POSITION_COLORS[position],
+                visible=True,
+                customdata=list(zip(count_df[position], media_df[position])),
+                hovertemplate=(
+                    "Jogador: %{x}<br>"
+                    f"Posição: {label}<br>"
+                    "Quantidade de vezes: %{y}<br>"
+                    "Média de participações/jogo: %{customdata[1]:.2f}<extra></extra>"
+                ),
+            )
+        )
+
+    for position in POSITION_ORDER:
+        label = POSITION_LABELS[position]
+        fig.add_trace(
+            go.Bar(
+                x=order,
+                y=adjusted_df[position],
+                name=label,
+                marker_color=POSITION_COLORS[position],
+                visible=False,
+                customdata=list(zip(count_df[position], media_df[position])),
+                hovertemplate=(
+                    "Jogador: %{x}<br>"
+                    f"Posição: {label}<br>"
+                    "Participações acumuladas: %{y}<br>"
+                    "Jogos nessa posição: %{customdata[0]}<br>"
+                    "Média de participações/jogo: %{customdata[1]:.2f}<extra></extra>"
+                ),
+            )
+        )
+
+    fig.update_layout(
+        template="plotly_white",
+        barmode="stack",
+        height=620,
+        margin=dict(l=40, r=20, t=110, b=160),
+        xaxis_title="Jogador",
+        yaxis_title="Quantidade de vezes",
+        xaxis_tickangle=-45,
+        legend_title="Posição",
+        title="Distribuição de posição por jogador",
+        updatemenus=[
+            dict(
+                type="buttons",
+                direction="right",
+                showactive=True,
+                x=0,
+                xanchor="left",
+                y=1.18,
+                yanchor="top",
+                buttons=[
+                    dict(
+                        label="Contagem de posições",
+                        method="update",
+                        args=[
+                            {"visible": [True] * len(POSITION_ORDER) + [False] * len(POSITION_ORDER)},
+                            {"title": "Distribuição de posição por jogador", "yaxis": {"title": "Quantidade de vezes"}},
+                        ],
+                    ),
+                    dict(
+                        label="Ajustado por participações",
+                        method="update",
+                        args=[
+                            {"visible": [False] * len(POSITION_ORDER) + [True] * len(POSITION_ORDER)},
+                            {
+                                "title": "Distribuição de posição por jogador ajustada por participações",
+                                "yaxis": {"title": "Participações em jogos daquela posição"},
+                            },
+                        ],
+                    ),
+                ],
+            )
+        ],
+        annotations=[
+            dict(
+                text="Selecione a versão do gráfico",
+                x=0,
+                xref="paper",
+                y=1.25,
+                yref="paper",
+                showarrow=False,
+                align="left",
+            )
+        ],
+    )
+    return fig
+
+
+def classification_games_adjusted_chart(df: pd.DataFrame) -> go.Figure:
+    order = player_order(df)
+    count_df = (
+        df.pivot_table(
+            index="Jogadores",
+            columns="classificacao_norm",
+            values="Data",
+            aggfunc="count",
+            fill_value=0,
+        )
+        .reindex(index=order, columns=POSITION_ORDER, fill_value=0)
+        .reset_index()
+    )
+    expected_df = count_df.copy()
+    total_games = count_df[POSITION_ORDER].sum(axis=1).astype(float)
+
+    for position in POSITION_ORDER:
+        expected_df[position] = (count_df[position].astype(float) / total_games.where(total_games > 0)).fillna(0.0)
+
+    fig = go.Figure()
+    for position in POSITION_ORDER:
+        label = POSITION_LABELS[position]
+        fig.add_trace(
+            go.Bar(
+                x=order,
+                y=count_df[position],
+                name=label,
+                marker_color=POSITION_COLORS[position],
+                visible=True,
+                customdata=list(zip(total_games, expected_df[position])),
+                hovertemplate=(
+                    "Jogador: %{x}<br>"
+                    f"Posicao: {label}<br>"
+                    "Quantidade de vezes: %{y}<br>"
+                    "Jogos do jogador: %{customdata[0]}<br>"
+                    "Percentual historico nessa posicao: %{customdata[1]:.1%}<extra></extra>"
+                ),
+            )
+        )
+
+    for position in POSITION_ORDER:
+        label = POSITION_LABELS[position]
+        fig.add_trace(
+            go.Bar(
+                x=order,
+                y=expected_df[position],
+                name=label,
+                marker_color=POSITION_COLORS[position],
+                visible=False,
+                customdata=list(zip(count_df[position], total_games)),
+                hovertemplate=(
+                    "Jogador: %{x}<br>"
+                    f"Posicao: {label}<br>"
+                    "Classificacao esperada historica: %{y:.1%}<br>"
+                    "Jogos nessa posicao: %{customdata[0]}<br>"
+                    "Jogos do jogador: %{customdata[1]}<extra></extra>"
+                ),
+            )
+        )
+
+    fig.update_layout(
+        template="plotly_white",
+        barmode="stack",
+        height=620,
+        margin=dict(l=40, r=20, t=110, b=160),
+        xaxis_title="Jogador",
+        yaxis_title="Quantidade de vezes",
+        xaxis_tickangle=-45,
+        legend_title="Posicao",
+        title="Distribuicao de posicao por jogador",
+        updatemenus=[
+            dict(
+                type="buttons",
+                direction="right",
+                showactive=True,
+                x=0,
+                xanchor="left",
+                y=1.18,
+                yanchor="top",
+                buttons=[
+                    dict(
+                        label="Contagem de posicoes",
+                        method="update",
+                        args=[
+                            {"visible": [True] * len(POSITION_ORDER) + [False] * len(POSITION_ORDER)},
+                            {
+                                "title": "Distribuicao de posicao por jogador",
+                                "yaxis": {"title": "Quantidade de vezes", "tickformat": ""},
+                            },
+                        ],
+                    ),
+                    dict(
+                        label="Ajustado por jogos",
+                        method="update",
+                        args=[
+                            {"visible": [False] * len(POSITION_ORDER) + [True] * len(POSITION_ORDER)},
+                            {
+                                "title": "Classificacao esperada historica por jogador",
+                                "yaxis": {"title": "Percentual dos jogos do jogador", "tickformat": ".0%"},
+                            },
+                        ],
+                    ),
+                ],
+            )
+        ],
+        annotations=[
+            dict(
+                text="Selecione a versao do grafico",
+                x=0,
+                xref="paper",
+                y=1.25,
+                yref="paper",
+                showarrow=False,
+                align="left",
+            )
+        ],
+    )
+    return fig
+
+
+def offensive_participation_blob_chart(df: pd.DataFrame, players_df: pd.DataFrame) -> go.Figure:
+    ratings_df = players_df[["scout_name", "rating"]].rename(columns={"scout_name": "Jogadores", "rating": "Nivel"})
+    chart_df = (
+        df.merge(ratings_df, on="Jogadores", how="inner")
+        .groupby(["Jogadores", "Nivel"], as_index=False)
+        .agg(
+            Participacoes_media=("participacoes", "mean"),
+            Jogos=("Data", "count"),
+            Participacoes_totais=("participacoes", "sum"),
+        )
+    )
+    chart_df["Nivel"] = chart_df["Nivel"].astype(int).astype(str)
+    level_order = [str(level) for level in sorted(chart_df["Nivel"].unique(), key=int)]
+
+    fig = px.violin(
+        chart_df,
+        x="Nivel",
+        y="Participacoes_media",
+        color="Nivel",
+        category_orders={"Nivel": level_order},
+        box=True,
+        points="all",
+        hover_data={
+            "Jogadores": True,
+            "Jogos": True,
+            "Participacoes_totais": True,
+            "Participacoes_media": ":.2f",
+            "Nivel": False,
+        },
+        title="Mancha de participacoes ofensivas medias por nivel do jogador",
+    )
+    fig.update_traces(
+        meanline_visible=True,
+        marker=dict(size=6, opacity=0.5),
+        pointpos=0,
+        jitter=0.16,
+        hovertemplate=(
+            "Nivel: %{x}<br>"
+            "Participacoes medias/jogo: %{y:.2f}<br>"
+            "Jogador: %{customdata[0]}<br>"
+            "Jogos: %{customdata[1]}<br>"
+            "Participacoes totais: %{customdata[2]}<extra></extra>"
+        ),
+    )
+    fig.update_layout(
+        template="plotly_white",
+        height=620,
+        margin=dict(l=40, r=20, t=70, b=40),
+        xaxis_title="Nivel do jogador",
+        yaxis_title="Participacoes ofensivas medias por jogo",
+        legend_title="Nivel",
+    )
+    return fig
+
+
 def monthly_player_bar(df: pd.DataFrame) -> go.Figure:
     monthly = (
         df.groupby(["Jogadores", "mes"], as_index=False)
@@ -356,13 +735,15 @@ def build_last4_cards(last4: pd.DataFrame) -> str:
 
 def build_dashboard(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> str:
     summary_df = summaries["resumo_jogadores"]
+    players_df = load_players()
     last4_cards = build_last4_cards(summaries["ultimas_4_datas"])
 
     figures = [
         overall_bar(summary_df, "Gols", "N\u00famero de gols por jogador", "#c0392b", "Gols"),
         overall_bar(summary_df, "Assistencias", "N\u00famero de assist\u00eancias por jogador", "#2980b9", "Assist\u00eancias"),
         overall_bar(summary_df, "Participacoes", "Total de participa\u00e7\u00f5es em gol por jogador", "#16a085", "Participa\u00e7\u00f5es"),
-        classification_chart(df),
+        offensive_participation_blob_chart(df, players_df),
+        classification_games_adjusted_chart(df),
         monthly_player_bar(df),
         top10_bar(summary_df, "Gols", "Top 10 de gols", "#c0392b", "Gols"),
         top10_bar(summary_df, "Assistencias", "Top 10 de assist\u00eancias", "#2980b9", "Assist\u00eancias"),
