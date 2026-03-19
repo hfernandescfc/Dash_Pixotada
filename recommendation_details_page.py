@@ -10,6 +10,7 @@ from rating_recommendations import (
     load_players,
     build_recent_form,
     build_adjusted_impact,
+    build_pre_match_expected_results,
     build_participation_baseline,
     evaluate_recommendation,
     suggest_row,
@@ -33,8 +34,7 @@ def compute_base():
     all_recent_names = sorted(recent_df["Jogadores"].drop_duplicates().tolist())
 
     recent_form = build_recent_form(recent_df, all_recent_names)
-    strength_map = dict(zip(recent_form["Jogadores"], recent_form["Nota_final"]))
-    adjusted = build_adjusted_impact(recent_df, strength_map)
+    adjusted = build_adjusted_impact(scout_df, recent_df)
     participation_baseline = build_participation_baseline(recent_df, players_df)
 
     result = players_df.merge(
@@ -77,42 +77,16 @@ def compute_base():
     suggestions = result.apply(suggest_row, axis=1, result_type="expand")
     suggestions.columns = ["nova_nota_sugerida", "sinal", "justificativa"]
     result = pd.concat([result, suggestions], axis=1)
-    return scout_df, recent_df, players_df, strength_map, result, last6_dates
+    return scout_df, recent_df, players_df, result, last6_dates
 
 
-def build_match_details(recent_df: pd.DataFrame, strength_map: dict[str, float]) -> pd.DataFrame:
-    data = recent_df.copy()
-    data["rating_base"] = data["Jogadores"].map(strength_map).fillna(0)
-    data["actual_points"] = data["classificacao_norm"].map(CLASS_POINTS)
-
+def build_match_details(scout_df: pd.DataFrame, recent_df: pd.DataFrame) -> pd.DataFrame:
+    merged = build_pre_match_expected_results(scout_df, recent_df).rename(columns={"forca_observada": "rating_base"})
     team_strength = (
-        data.groupby(["Data", "Time"], as_index=False)
-        .agg(
-            team_strength=("rating_base", "sum"),
-            team_rating_mean=("rating_base", "mean"),
-            classificacao=("classificacao_norm", "first"),
-            actual_points=("actual_points", "first"),
-        )
+        merged.groupby(["Data", "Time"], as_index=False)
+        .agg(team_rating_mean=("rating_base", "mean"))
     )
-    team_strength["expected_rank"] = team_strength.groupby("Data")["team_strength"].rank(method="dense", ascending=False)
-    team_strength["expected_points"] = team_strength["expected_rank"].map(EXPECTED_POINTS_MAP).fillna(1)
-    team_strength["delta_points"] = team_strength["actual_points"] - team_strength["expected_points"]
-
-    merged = data.merge(
-        team_strength[
-            [
-                "Data",
-                "Time",
-                "team_strength",
-                "team_rating_mean",
-                "expected_rank",
-                "expected_points",
-                "delta_points",
-            ]
-        ],
-        on=["Data", "Time"],
-        how="left",
-    )
+    merged = merged.merge(team_strength, on=["Data", "Time"], how="left")
 
     rows = []
     for (match_date, team), team_df in merged.groupby(["Data", "Time"]):
@@ -587,8 +561,8 @@ def main() -> None:
     OUTPUT_DIR.mkdir(exist_ok=True)
     PUBLIC_DIR.mkdir(exist_ok=True)
 
-    scout_df, recent_df, _players_df, ratings_map, result, last6_dates = compute_base()
-    match_df = build_match_details(recent_df, ratings_map)
+    scout_df, recent_df, _players_df, result, last6_dates = compute_base()
+    match_df = build_match_details(scout_df, recent_df)
     payload = build_payload(result, match_df)
 
     html = build_html(payload, last6_dates)

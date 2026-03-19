@@ -5,7 +5,7 @@ import pandas as pd
 
 import aliases as alias_lib
 from pixotada_dashboard import load_data
-from pixotada_scores import MODELS, score_model
+from pixotada_scores import MODELS, last4_games, score_model
 
 
 BASE_DIR = Path(r"c:\Users\compesa\Desktop")
@@ -63,10 +63,23 @@ def build_recent_form(df: pd.DataFrame, player_names: list[str]) -> pd.DataFrame
     return ranking
 
 
-def build_adjusted_impact(df: pd.DataFrame, strength_map: dict[str, float]) -> pd.DataFrame:
-    data = df.copy()
-    # Expected team strength is based on observed recent form, not current stars.
-    data["forca_observada"] = data["Jogadores"].map(strength_map).fillna(0)
+def build_pre_match_expected_results(history_df: pd.DataFrame, evaluation_df: pd.DataFrame) -> pd.DataFrame:
+    model_config = MODELS["equilibrado"]
+    evaluated_matches = []
+
+    for match_date in sorted(evaluation_df["Data"].drop_duplicates()):
+        prior_df = history_df.loc[history_df["Data"] < match_date].copy()
+        if prior_df.empty:
+            strength_map = {}
+        else:
+            ranking, _ = score_model(last4_games(prior_df), "equilibrado", model_config)
+            strength_map = dict(zip(ranking["Jogadores"], ranking["Nota_final"]))
+
+        match_rows = evaluation_df.loc[evaluation_df["Data"] == match_date].copy()
+        match_rows["forca_observada"] = match_rows["Jogadores"].map(strength_map).fillna(0)
+        evaluated_matches.append(match_rows)
+
+    data = pd.concat(evaluated_matches, ignore_index=True) if evaluated_matches else evaluation_df.iloc[0:0].copy()
     data["actual_points"] = data["classificacao_norm"].map(ACTUAL_POINTS)
 
     team_strength = (
@@ -86,6 +99,11 @@ def build_adjusted_impact(df: pd.DataFrame, strength_map: dict[str, float]) -> p
         on=["Data", "Time"],
         how="left",
     )
+    return data
+
+
+def build_adjusted_impact(history_df: pd.DataFrame, evaluation_df: pd.DataFrame) -> pd.DataFrame:
+    data = build_pre_match_expected_results(history_df, evaluation_df)
     summary = (
         data.groupby("Jogadores", as_index=False)
         .agg(
@@ -444,7 +462,7 @@ def main() -> None:
     all_recent_names = sorted(recent_df["Jogadores"].drop_duplicates().tolist())
 
     recent_form = build_recent_form(recent_df, all_recent_names)
-    adjusted = build_adjusted_impact(recent_df, dict(zip(recent_form["Jogadores"], recent_form["Nota_final"])))
+    adjusted = build_adjusted_impact(scout_df, recent_df)
     participation_baseline = build_participation_baseline(recent_df, players_df)
 
     result = players_df.merge(

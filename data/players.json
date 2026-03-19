@@ -19,7 +19,7 @@
   },
   {
     "name": "Calafa",
-    "rating": 4,
+    "rating": 3,
     "intensity": "LOW",
     "mensalista": true
   },
@@ -211,7 +211,7 @@
   },
   {
     "name": "Sabugo",
-    "rating": 2,
+    "rating": 1,
     "intensity": "LOW",
     "mensalista": false
   },
@@ -290,12 +290,6 @@
   {
     "name": "Porpino",
     "rating": 3,
-    "intensity": "LOW",
-    "mensalista": false
-  },
-  {
-    "name": "Guilherme Calafa",
-    "rating": 4,
     "intensity": "LOW",
     "mensalista": false
   }

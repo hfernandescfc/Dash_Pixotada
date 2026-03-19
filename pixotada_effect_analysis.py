@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from pixotada_dashboard import OUTPUT_DIR, PUBLIC_DIR, load_data
-from pixotada_scores import last4_games, score_model, MODELS
+from rating_recommendations import build_pre_match_expected_results
 
 
 BASE_DIR = Path(r"c:\Users\compesa\Desktop")
@@ -23,54 +23,14 @@ CLASS_RANK = {
     "Lanterna": 4,
 }
 
-
-def build_player_strength(df: pd.DataFrame) -> pd.DataFrame:
-    recent = last4_games(df)
-    ranking, _ = score_model(recent, "equilibrado", MODELS["equilibrado"])
-    strength = ranking[["Jogadores", "Nota_final", "Jogos_considerados"]].rename(
-        columns={"Nota_final": "forca_recente", "Jogos_considerados": "jogos_ult4"}
-    )
-    return strength
-
-
-def build_team_context(df: pd.DataFrame, strength: pd.DataFrame) -> pd.DataFrame:
-    data = df.merge(strength, on="Jogadores", how="left")
-    data["forca_recente"] = data["forca_recente"].fillna(0)
+def build_team_context(df: pd.DataFrame) -> pd.DataFrame:
+    data = build_pre_match_expected_results(df, df).rename(columns={"forca_observada": "forca_recente"})
     data["class_points"] = data["classificacao_norm"].map(CLASS_POINTS)
     data["class_rank"] = data["classificacao_norm"].map(CLASS_RANK)
-
-    team_strength = (
-        data.groupby(["Data", "Time"], as_index=False)
-        .agg(
-            team_strength=("forca_recente", "sum"),
-            team_avg_strength=("forca_recente", "mean"),
-            team_actual_points=("class_points", "first"),
-            team_actual_rank=("class_rank", "first"),
-            team_players=("Jogadores", "count"),
-        )
-    )
-    team_strength["expected_rank"] = team_strength.groupby("Data")["team_strength"].rank(method="dense", ascending=False)
-    expected_points_map = {1.0: 4, 2.0: 3, 3.0: 2, 4.0: 1}
-    team_strength["expected_points"] = team_strength["expected_rank"].map(expected_points_map).fillna(1)
-    team_strength["team_delta_points"] = team_strength["team_actual_points"] - team_strength["expected_points"]
-    team_strength["team_delta_rank"] = team_strength["expected_rank"] - team_strength["team_actual_rank"]
-
-    data = data.merge(
-        team_strength[
-            [
-                "Data",
-                "Time",
-                "team_strength",
-                "team_avg_strength",
-                "expected_rank",
-                "expected_points",
-                "team_delta_points",
-                "team_delta_rank",
-            ]
-        ],
-        on=["Data", "Time"],
-        how="left",
-    )
+    data["team_delta_points"] = data["delta_points"]
+    data["team_actual_rank"] = data["class_rank"]
+    data["team_avg_strength"] = data.groupby(["Data", "Time"])["forca_recente"].transform("mean")
+    data["team_delta_rank"] = data["expected_points"].map({4: 1, 3: 2, 2: 3, 1: 4}) - data["team_actual_rank"]
 
     appearance_rows = []
     for (match_date, team), team_df in data.groupby(["Data", "Time"]):
@@ -97,7 +57,7 @@ def build_team_context(df: pd.DataFrame, strength: pd.DataFrame) -> pd.DataFrame
                     "Forca_media_companheiros": teammate_strengths.mean() if not teammate_strengths.empty else 0,
                     "Forca_media_adversarios": opponents_df["forca_recente"].mean() if not opponents_df.empty else 0,
                     "Forca_total_adversarios": opponents_df["forca_recente"].sum(),
-                    "Expected_rank": row.expected_rank,
+                    "Expected_rank": {4: 1, 3: 2, 2: 3, 1: 4}.get(row.expected_points, 4),
                     "Expected_points": row.expected_points,
                     "Delta_points": row.team_delta_points,
                     "Delta_rank": row.team_delta_rank,
@@ -301,8 +261,7 @@ def main() -> None:
     PUBLIC_DIR.mkdir(exist_ok=True)
 
     df = load_data()
-    strength = build_player_strength(df)
-    appearance_df = build_team_context(df, strength)
+    appearance_df = build_team_context(df)
     impact_df = build_player_impact(appearance_df)
     impact_df_min4 = impact_df.loc[impact_df["Jogos"] >= 4].copy()
     pair_df = build_pair_synergy(appearance_df)
