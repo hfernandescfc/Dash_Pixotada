@@ -12,6 +12,7 @@ from rating_recommendations import (
     build_adjusted_impact,
     build_pre_match_expected_results,
     build_participation_baseline,
+    build_collective_baseline,
     evaluate_recommendation,
     suggest_row,
 )
@@ -36,6 +37,7 @@ def compute_base():
     recent_form = build_recent_form(recent_df, all_recent_names)
     adjusted = build_adjusted_impact(scout_df, recent_df)
     participation_baseline = build_participation_baseline(recent_df, players_df)
+    collective_baseline = build_collective_baseline(recent_df, players_df)
 
     result = players_df.merge(
         recent_form[
@@ -72,6 +74,25 @@ def compute_base():
         right_on="Jogadores",
         how="left",
         suffixes=("", "_baseline"),
+    ).merge(
+        collective_baseline[
+            [
+                "Jogadores",
+                "Gols_time_pg",
+                "Gols_sofridos_pg",
+                "Jogos_sem_sofrer_pg",
+                "Gols_time_esperados_pg_nota",
+                "Gols_sofridos_esperados_pg_nota",
+                "Jogos_sem_sofrer_esperados_pg_nota",
+                "Delta_gols_time_vs_nota",
+                "Delta_gols_sofridos_vs_nota",
+                "Delta_jogos_sem_sofrer_vs_nota",
+            ]
+        ],
+        left_on="scout_name",
+        right_on="Jogadores",
+        how="left",
+        suffixes=("", "_collective"),
     )
 
     suggestions = result.apply(suggest_row, axis=1, result_type="expand")
@@ -106,6 +127,15 @@ def build_match_details(scout_df: pd.DataFrame, recent_df: pd.DataFrame) -> pd.D
                     "Pontos_reais": int(row.actual_points),
                     "Pontos_esperados": int(row.expected_points),
                     "Delta": float(row.delta_points),
+                    "Gols_time": float(row.gols_time),
+                    "Gols_sofridos": float(row.gols_sofridos),
+                    "Jogos_sem_sofrer": float(row.jogos_sem_sofrer),
+                    "Expected_gols_time": float(row.expected_gols_time),
+                    "Expected_gols_sofridos": float(row.expected_gols_sofridos),
+                    "Expected_jogos_sem_sofrer": float(row.expected_jogos_sem_sofrer),
+                    "Delta_gols_time": float(row.delta_gols_time),
+                    "Delta_gols_sofridos": float(row.delta_gols_sofridos),
+                    "Delta_jogos_sem_sofrer": float(row.delta_jogos_sem_sofrer),
                     "Forca_time": float(row.team_strength),
                     "Media_nota_time": float(row.team_rating_mean),
                     "Companheiros": [name for name in team_players if name != row.Jogadores],
@@ -132,6 +162,13 @@ def build_payload(result: pd.DataFrame, match_df: pd.DataFrame) -> dict:
             "posicao_modelo_recente": None if pd.isna(row.Posicao) else int(row.Posicao),
             "participacoes_ult6": None if pd.isna(row.Participacoes_ult6) else int(row.Participacoes_ult6),
             "impacto_ajustado": None if pd.isna(row.Impacto_ajustado) else round(float(row.Impacto_ajustado), 2),
+            "impacto_gols_time": None if pd.isna(row.Impacto_gols_time) else round(float(row.Impacto_gols_time), 2),
+            "impacto_gols_sofridos": None
+            if pd.isna(row.Impacto_gols_sofridos)
+            else round(float(row.Impacto_gols_sofridos), 2),
+            "impacto_jogos_sem_sofrer": None
+            if pd.isna(row.Impacto_jogos_sem_sofrer)
+            else round(float(row.Impacto_jogos_sem_sofrer), 2),
             "participacao_real_pg": None if pd.isna(row.Participacao_real_pg) else round(float(row.Participacao_real_pg), 2),
             "participacao_esperada_pg_nota": None
             if pd.isna(row.Participacao_esperada_pg_nota)
@@ -139,6 +176,29 @@ def build_payload(result: pd.DataFrame, match_df: pd.DataFrame) -> dict:
             "delta_participacao_vs_nota": None
             if pd.isna(row.Delta_participacao_vs_nota)
             else round(float(row.Delta_participacao_vs_nota), 2),
+            "gols_time_pg": None if pd.isna(row.Gols_time_pg) else round(float(row.Gols_time_pg), 2),
+            "gols_time_esperados_pg_nota": None
+            if pd.isna(row.Gols_time_esperados_pg_nota)
+            else round(float(row.Gols_time_esperados_pg_nota), 2),
+            "delta_gols_time_vs_nota": None
+            if pd.isna(row.Delta_gols_time_vs_nota)
+            else round(float(row.Delta_gols_time_vs_nota), 2),
+            "gols_sofridos_pg": None if pd.isna(row.Gols_sofridos_pg) else round(float(row.Gols_sofridos_pg), 2),
+            "gols_sofridos_esperados_pg_nota": None
+            if pd.isna(row.Gols_sofridos_esperados_pg_nota)
+            else round(float(row.Gols_sofridos_esperados_pg_nota), 2),
+            "delta_gols_sofridos_vs_nota": None
+            if pd.isna(row.Delta_gols_sofridos_vs_nota)
+            else round(float(row.Delta_gols_sofridos_vs_nota), 2),
+            "jogos_sem_sofrer_pg": None
+            if pd.isna(row.Jogos_sem_sofrer_pg)
+            else round(float(row.Jogos_sem_sofrer_pg), 2),
+            "jogos_sem_sofrer_esperados_pg_nota": None
+            if pd.isna(row.Jogos_sem_sofrer_esperados_pg_nota)
+            else round(float(row.Jogos_sem_sofrer_esperados_pg_nota), 2),
+            "delta_jogos_sem_sofrer_vs_nota": None
+            if pd.isna(row.Delta_jogos_sem_sofrer_vs_nota)
+            else round(float(row.Delta_jogos_sem_sofrer_vs_nota), 2),
             "justificativa": row.justificativa,
             "memoria_calculo": evaluation,
             "tem_correspondencia": player in set(match_df["Jogadores"].unique()),
@@ -153,6 +213,15 @@ def build_payload(result: pd.DataFrame, match_df: pd.DataFrame) -> dict:
                     "Pontos_reais",
                     "Pontos_esperados",
                     "Delta",
+                    "Gols_time",
+                    "Gols_sofridos",
+                    "Jogos_sem_sofrer",
+                    "Expected_gols_time",
+                    "Expected_gols_sofridos",
+                    "Expected_jogos_sem_sofrer",
+                    "Delta_gols_time",
+                    "Delta_gols_sofridos",
+                    "Delta_jogos_sem_sofrer",
                     "Forca_time",
                     "Media_nota_time",
                     "Companheiros",
@@ -468,9 +537,21 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
         metric('Posição no modelo recente', item.posicao_modelo_recente ?? '-'),
         metric('Participações nas últimas 6', item.participacoes_ult6 ?? '-'),
         metric('Impacto ajustado', item.impacto_ajustado ?? '-'),
+        metric('Impacto gols do time', item.impacto_gols_time ?? '-'),
+        metric('Impacto gols sofridos', item.impacto_gols_sofridos ?? '-'),
+        metric('Impacto clean sheets', item.impacto_jogos_sem_sofrer ?? '-'),
         metric('Participações por jogo', item.participacao_real_pg ?? '-'),
         metric('Esperado p/ a nota', item.participacao_esperada_pg_nota ?? '-'),
         metric('Delta participação vs nota', item.delta_participacao_vs_nota ?? '-'),
+        metric('Gols do time por jogo', item.gols_time_pg ?? '-'),
+        metric('Esperado gols do time', item.gols_time_esperados_pg_nota ?? '-'),
+        metric('Delta gols do time', item.delta_gols_time_vs_nota ?? '-'),
+        metric('Gols sofridos por jogo', item.gols_sofridos_pg ?? '-'),
+        metric('Esperado gols sofridos', item.gols_sofridos_esperados_pg_nota ?? '-'),
+        metric('Delta gols sofridos', item.delta_gols_sofridos_vs_nota ?? '-'),
+        metric('Clean sheets por jogo', item.jogos_sem_sofrer_pg ?? '-'),
+        metric('Esperado clean sheets', item.jogos_sem_sofrer_esperados_pg_nota ?? '-'),
+        metric('Delta clean sheets', item.delta_jogos_sem_sofrer_vs_nota ?? '-'),
         metric('Correspondência no scout', item.tem_correspondencia ? 'Sim' : 'Não'),
         metric('Sinal', formatSignal(item.sinal)),
       ].join('');
@@ -486,6 +567,9 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
           <div class="calc-item"><strong>Ataque forte</strong>${{formatBool(flags.ataque_forte)}}</div>
           <div class="calc-item"><strong>Ataque fraco</strong>${{formatBool(flags.ataque_fraco)}}</div>
           <div class="calc-item"><strong>Ataque muito fraco</strong>${{formatBool(flags.ataque_muito_fraco)}}</div>
+          <div class="calc-item"><strong>Coletivo ok</strong>${{formatBool(flags.coletivo_ok)}}</div>
+          <div class="calc-item"><strong>Coletivo forte</strong>${{formatBool(flags.coletivo_forte)}}</div>
+          <div class="calc-item"><strong>Coletivo fraco</strong>${{formatBool(flags.coletivo_fraco)}}</div>
         </div>
         <div class="rule-list">
           <div class="rule ${{flags.strong_up ? 'hit' : ''}}">
@@ -512,6 +596,9 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
             <strong>Valores usados na decisão</strong>
             <div>Posição recente: ${{metrics.posicao_modelo_recente ?? '-'}} | Impacto ajustado: ${{formatNumber(metrics.impacto_ajustado)}} | Jogos: ${{metrics.jogos_ult6 ?? '-'}}</div>
             <div>Participação real/jogo: ${{formatNumber(metrics.participacao_real_pg)}} | Esperado p/ nota: ${{formatNumber(metrics.participacao_esperada_pg_nota)}} | Delta: ${{formatNumber(metrics.delta_participacao_vs_nota)}}</div>
+            <div>Gols do time/jogo: ${{formatNumber(metrics.gols_time_pg)}} | Esperado: ${{formatNumber(metrics.gols_time_esperados_pg_nota)}} | Delta: ${{formatNumber(metrics.delta_gols_time_vs_nota)}}</div>
+            <div>Gols sofridos/jogo: ${{formatNumber(metrics.gols_sofridos_pg)}} | Esperado: ${{formatNumber(metrics.gols_sofridos_esperados_pg_nota)}} | Delta: ${{formatNumber(metrics.delta_gols_sofridos_vs_nota)}}</div>
+            <div>Clean sheets/jogo: ${{formatNumber(metrics.jogos_sem_sofrer_pg)}} | Esperado: ${{formatNumber(metrics.jogos_sem_sofrer_esperados_pg_nota)}} | Delta: ${{formatNumber(metrics.delta_jogos_sem_sofrer_vs_nota)}}</div>
           </div>
         </div>
       `;
@@ -532,6 +619,12 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
             <div class="mini"><span>Assistências</span><strong>${{match.Assistencias}}</strong></div>
             <div class="mini"><span>Participações</span><strong>${{match.Participacoes}}</strong></div>
             <div class="mini"><span>Pontos reais / esperados</span><strong>${{match.Pontos_reais}} / ${{match.Pontos_esperados}}</strong></div>
+            <div class="mini"><span>Gols do time / esperado</span><strong>${{formatNumber(match.Gols_time)}} / ${{formatNumber(match.Expected_gols_time)}}</strong></div>
+            <div class="mini"><span>Gols sofridos / esperado</span><strong>${{formatNumber(match.Gols_sofridos)}} / ${{formatNumber(match.Expected_gols_sofridos)}}</strong></div>
+            <div class="mini"><span>Clean sheets / esperado</span><strong>${{formatNumber(match.Jogos_sem_sofrer)}} / ${{formatNumber(match.Expected_jogos_sem_sofrer)}}</strong></div>
+            <div class="mini"><span>Delta gols do time</span><strong>${{formatNumber(match.Delta_gols_time)}}</strong></div>
+            <div class="mini"><span>Delta gols sofridos</span><strong>${{formatNumber(match.Delta_gols_sofridos)}}</strong></div>
+            <div class="mini"><span>Delta clean sheets</span><strong>${{formatNumber(match.Delta_jogos_sem_sofrer)}}</strong></div>
             <div class="mini"><span>Força do time</span><strong>${{match.Forca_time.toFixed(2)}}</strong></div>
             <div class="mini"><span>Média de força observada</span><strong>${{match.Media_nota_time.toFixed(2)}}</strong></div>
           </div>

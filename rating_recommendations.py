@@ -1,17 +1,12 @@
-from pathlib import Path
 import json
+from pathlib import Path
 
 import pandas as pd
 
 import aliases as alias_lib
-from pixotada_dashboard import load_data
+from pixotada_dashboard import BASE_DIR, OUTPUT_DIR, PUBLIC_DIR, PLAYERS_FILE, load_data
 from pixotada_scores import MODELS, last4_games, score_model
 
-
-BASE_DIR = Path(r"c:\Users\compesa\Desktop")
-PLAYERS_FILE = BASE_DIR / "Peladapp" / "players.json"
-OUTPUT_DIR = BASE_DIR / "pixotada_2026_dashboard"
-PUBLIC_DIR = BASE_DIR / "pixotada_public_site"
 
 ACTUAL_POINTS = {"Campeao": 4, "Segundo": 3, "Terceiro": 2, "Lanterna": 1}
 EXPECTED_POINTS_MAP = {1.0: 4, 2.0: 3, 3.0: 2, 4.0: 1}
@@ -33,11 +28,6 @@ ALIASES = {
     "eduardo jorge": "JG",
     "davi": "David Marques",
 }
-
-
-def normalize_name(value: str) -> str:
-    text = unicodedata.normalize("NFKD", value.strip().lower())
-    return "".join(char for char in text if not unicodedata.combining(char))
 
 
 def load_players() -> pd.DataFrame:
@@ -66,9 +56,14 @@ def build_recent_form(df: pd.DataFrame, player_names: list[str]) -> pd.DataFrame
 def build_pre_match_expected_results(history_df: pd.DataFrame, evaluation_df: pd.DataFrame) -> pd.DataFrame:
     model_config = MODELS["equilibrado"]
     evaluated_matches = []
+    history_df = history_df.copy()
+    evaluation_df = evaluation_df.copy()
+    history_df.attrs = {}
+    evaluation_df.attrs = {}
 
     for match_date in sorted(evaluation_df["Data"].drop_duplicates()):
         prior_df = history_df.loc[history_df["Data"] < match_date].copy()
+        prior_df.attrs = {}
         if prior_df.empty:
             strength_map = {}
         else:
@@ -76,6 +71,7 @@ def build_pre_match_expected_results(history_df: pd.DataFrame, evaluation_df: pd
             strength_map = dict(zip(ranking["Jogadores"], ranking["Nota_final"]))
 
         match_rows = evaluation_df.loc[evaluation_df["Data"] == match_date].copy()
+        match_rows.attrs = {}
         match_rows["forca_observada"] = match_rows["Jogadores"].map(strength_map).fillna(0)
         evaluated_matches.append(match_rows)
 
@@ -88,14 +84,45 @@ def build_pre_match_expected_results(history_df: pd.DataFrame, evaluation_df: pd
             team_strength=("forca_observada", "sum"),
             actual_points=("actual_points", "first"),
             classificacao=("classificacao_norm", "first"),
+            gols_time=("gols_time", "first"),
+            gols_sofridos=("gols_sofridos", "first"),
+            jogos_sem_sofrer=("jogos_sem_sofrer", "first"),
         )
     )
     team_strength["expected_rank"] = team_strength.groupby("Data")["team_strength"].rank(method="dense", ascending=False)
     team_strength["expected_points"] = team_strength["expected_rank"].map(EXPECTED_POINTS_MAP).fillna(1)
     team_strength["delta_points"] = team_strength["actual_points"] - team_strength["expected_points"]
+    expected_profile = (
+        team_strength.groupby("expected_rank", as_index=False)
+        .agg(
+            expected_gols_time=("gols_time", "mean"),
+            expected_gols_sofridos=("gols_sofridos", "mean"),
+            expected_jogos_sem_sofrer=("jogos_sem_sofrer", "mean"),
+        )
+    )
+    team_strength = team_strength.merge(expected_profile, on="expected_rank", how="left")
+    team_strength["delta_gols_time"] = team_strength["gols_time"] - team_strength["expected_gols_time"]
+    team_strength["delta_gols_sofridos"] = team_strength["expected_gols_sofridos"] - team_strength["gols_sofridos"]
+    team_strength["delta_jogos_sem_sofrer"] = (
+        team_strength["jogos_sem_sofrer"] - team_strength["expected_jogos_sem_sofrer"]
+    )
 
     data = data.merge(
-        team_strength[["Data", "Time", "expected_points", "delta_points", "team_strength"]],
+        team_strength[
+            [
+                "Data",
+                "Time",
+                "expected_points",
+                "delta_points",
+                "team_strength",
+                "expected_gols_time",
+                "expected_gols_sofridos",
+                "expected_jogos_sem_sofrer",
+                "delta_gols_time",
+                "delta_gols_sofridos",
+                "delta_jogos_sem_sofrer",
+            ]
+        ],
         on=["Data", "Time"],
         how="left",
     )
@@ -113,6 +140,12 @@ def build_adjusted_impact(history_df: pd.DataFrame, evaluation_df: pd.DataFrame)
             Impacto_ajustado=("delta_points", "mean"),
             Impacto_bruto=("actual_points", "mean"),
             Expected_points_medios=("expected_points", "mean"),
+            Gols_time_pg=("gols_time", "mean"),
+            Gols_sofridos_pg=("gols_sofridos", "mean"),
+            Jogos_sem_sofrer_pg=("jogos_sem_sofrer", "mean"),
+            Impacto_gols_time=("delta_gols_time", "mean"),
+            Impacto_gols_sofridos=("delta_gols_sofridos", "mean"),
+            Impacto_jogos_sem_sofrer=("delta_jogos_sem_sofrer", "mean"),
         )
     )
     return summary
@@ -160,6 +193,60 @@ def build_participation_baseline(df: pd.DataFrame, players_df: pd.DataFrame) -> 
     return player_summary
 
 
+def build_collective_baseline(df: pd.DataFrame, players_df: pd.DataFrame) -> pd.DataFrame:
+    player_ratings = players_df[["scout_name", "rating"]].rename(columns={"scout_name": "Jogadores"})
+    rated_games = df.merge(player_ratings, on="Jogadores", how="left")
+
+    player_summary = (
+        rated_games.groupby(["Jogadores", "rating"], as_index=False)
+        .agg(
+            Jogos_ult6=("Data", "count"),
+            Gols_time_pg=("gols_time", "mean"),
+            Gols_sofridos_pg=("gols_sofridos", "mean"),
+            Jogos_sem_sofrer_pg=("jogos_sem_sofrer", "mean"),
+        )
+    )
+
+    global_profile = {
+        "Gols_time_pg": player_summary["Gols_time_pg"].mean(),
+        "Gols_sofridos_pg": player_summary["Gols_sofridos_pg"].mean(),
+        "Jogos_sem_sofrer_pg": player_summary["Jogos_sem_sofrer_pg"].mean(),
+    }
+
+    baseline = (
+        player_summary.groupby("rating", as_index=False)
+        .agg(
+            Gols_time_medio_nota=("Gols_time_pg", "mean"),
+            Gols_sofridos_medio_nota=("Gols_sofridos_pg", "mean"),
+            Jogos_sem_sofrer_medio_nota=("Jogos_sem_sofrer_pg", "mean"),
+            Jogadores_na_faixa=("Jogadores", "count"),
+        )
+    )
+    shrink = baseline["Jogadores_na_faixa"] + 2
+    baseline["Gols_time_esperados_pg_nota"] = (
+        baseline["Gols_time_medio_nota"] * baseline["Jogadores_na_faixa"] + global_profile["Gols_time_pg"] * 2
+    ) / shrink
+    baseline["Gols_sofridos_esperados_pg_nota"] = (
+        baseline["Gols_sofridos_medio_nota"] * baseline["Jogadores_na_faixa"] + global_profile["Gols_sofridos_pg"] * 2
+    ) / shrink
+    baseline["Jogos_sem_sofrer_esperados_pg_nota"] = (
+        baseline["Jogos_sem_sofrer_medio_nota"] * baseline["Jogadores_na_faixa"]
+        + global_profile["Jogos_sem_sofrer_pg"] * 2
+    ) / shrink
+
+    player_summary = player_summary.merge(baseline, on="rating", how="left", suffixes=("", "_baseline"))
+    player_summary["Delta_gols_time_vs_nota"] = (
+        player_summary["Gols_time_pg"] - player_summary["Gols_time_esperados_pg_nota"]
+    )
+    player_summary["Delta_gols_sofridos_vs_nota"] = (
+        player_summary["Gols_sofridos_pg"] - player_summary["Gols_sofridos_esperados_pg_nota"]
+    )
+    player_summary["Delta_jogos_sem_sofrer_vs_nota"] = (
+        player_summary["Jogos_sem_sofrer_pg"] - player_summary["Jogos_sem_sofrer_esperados_pg_nota"]
+    )
+    return player_summary
+
+
 def evaluate_recommendation(row: pd.Series) -> dict:
     current = None if pd.isna(row.get("rating")) else int(row["rating"])
     impact = row.get("Impacto_ajustado")
@@ -170,6 +257,18 @@ def evaluate_recommendation(row: pd.Series) -> dict:
     participacao_real_pg = row.get("Participacao_real_pg")
     participacao_esperada = row.get("Participacao_esperada_pg_nota")
     delta_participacao = row.get("Delta_participacao_vs_nota")
+    gols_time_pg = row.get("Gols_time_pg")
+    gols_time_esperados = row.get("Gols_time_esperados_pg_nota")
+    delta_gols_time = row.get("Delta_gols_time_vs_nota")
+    gols_sofridos_pg = row.get("Gols_sofridos_pg")
+    gols_sofridos_esperados = row.get("Gols_sofridos_esperados_pg_nota")
+    delta_gols_sofridos = row.get("Delta_gols_sofridos_vs_nota")
+    jogos_sem_sofrer_pg = row.get("Jogos_sem_sofrer_pg")
+    jogos_sem_sofrer_esperados = row.get("Jogos_sem_sofrer_esperados_pg_nota")
+    delta_clean_sheet = row.get("Delta_jogos_sem_sofrer_vs_nota")
+    impacto_gols_time = row.get("Impacto_gols_time")
+    impacto_gols_sofridos = row.get("Impacto_gols_sofridos")
+    impacto_clean_sheet = row.get("Impacto_jogos_sem_sofrer")
 
     metrics = {
         "nota_atual": current,
@@ -181,6 +280,22 @@ def evaluate_recommendation(row: pd.Series) -> dict:
         "participacao_real_pg": None if pd.isna(participacao_real_pg) else float(participacao_real_pg),
         "participacao_esperada_pg_nota": None if pd.isna(participacao_esperada) else float(participacao_esperada),
         "delta_participacao_vs_nota": None if pd.isna(delta_participacao) else float(delta_participacao),
+        "gols_time_pg": None if pd.isna(gols_time_pg) else float(gols_time_pg),
+        "gols_time_esperados_pg_nota": None if pd.isna(gols_time_esperados) else float(gols_time_esperados),
+        "delta_gols_time_vs_nota": None if pd.isna(delta_gols_time) else float(delta_gols_time),
+        "gols_sofridos_pg": None if pd.isna(gols_sofridos_pg) else float(gols_sofridos_pg),
+        "gols_sofridos_esperados_pg_nota": None
+        if pd.isna(gols_sofridos_esperados)
+        else float(gols_sofridos_esperados),
+        "delta_gols_sofridos_vs_nota": None if pd.isna(delta_gols_sofridos) else float(delta_gols_sofridos),
+        "jogos_sem_sofrer_pg": None if pd.isna(jogos_sem_sofrer_pg) else float(jogos_sem_sofrer_pg),
+        "jogos_sem_sofrer_esperados_pg_nota": None
+        if pd.isna(jogos_sem_sofrer_esperados)
+        else float(jogos_sem_sofrer_esperados),
+        "delta_jogos_sem_sofrer_vs_nota": None if pd.isna(delta_clean_sheet) else float(delta_clean_sheet),
+        "impacto_gols_time": None if pd.isna(impacto_gols_time) else float(impacto_gols_time),
+        "impacto_gols_sofridos": None if pd.isna(impacto_gols_sofridos) else float(impacto_gols_sofridos),
+        "impacto_jogos_sem_sofrer": None if pd.isna(impacto_clean_sheet) else float(impacto_clean_sheet),
     }
 
     if current is None or pd.isna(impact) or pd.isna(position) or jogos < 3:
@@ -192,18 +307,27 @@ def evaluate_recommendation(row: pd.Series) -> dict:
                 "ataque_forte": None,
                 "ataque_fraco": None,
                 "ataque_muito_fraco": None,
+                "coletivo_ok": None,
+                "coletivo_forte": None,
+                "coletivo_fraco": None,
                 "strong_up": False,
                 "moderate_up": False,
                 "strong_down": False,
                 "moderate_down": False,
             },
             "thresholds": {
-                "subida_principal": "top_recent = True, impacto >= 0.20, ataque_ok = True, nota_atual < 7",
-                "subida_secundaria": "posicao <= 10, impacto >= 0.35, ataque_forte = True, nota_atual < 7",
-                "descida_principal": "bottom_recent = True, impacto <= -0.20, ataque_fraco = True, nota_atual > 1",
+                "subida_principal": (
+                    "top_recent = True, impacto >= 0.20, ataque_ok = True, coletivo_ok = True, nota_atual < 7"
+                ),
+                "subida_secundaria": (
+                    "posicao <= 10, impacto >= 0.35, ataque_forte = True, coletivo_forte = True, nota_atual < 7"
+                ),
+                "descida_principal": (
+                    "bottom_recent = True, impacto <= -0.20, ataque_fraco = True, coletivo_fraco = True, nota_atual > 1"
+                ),
                 "descida_secundaria": (
-                    "(impacto <= -0.50, posicao >= 10, nota_atual >= 4, ataque_fraco = True) "
-                    "ou (nota_atual >= 5, ataque_muito_fraco = True, impacto <= 0)"
+                    "(impacto <= -0.50, posicao >= 10, nota_atual >= 4, ataque_fraco = True, coletivo_fraco = True) "
+                    "ou (nota_atual >= 5, ataque_muito_fraco = True, impacto <= 0, coletivo_ok = False)"
                 ),
             },
             "decision": {
@@ -218,12 +342,22 @@ def evaluate_recommendation(row: pd.Series) -> dict:
     ataque_forte = not pd.isna(delta_participacao) and delta_participacao >= 0.35
     ataque_fraco = not pd.isna(delta_participacao) and delta_participacao <= -0.35
     ataque_muito_fraco = not pd.isna(delta_participacao) and delta_participacao <= -0.75
+    gols_time_ok = pd.isna(delta_gols_time) or delta_gols_time >= -0.2
+    gols_time_forte = not pd.isna(delta_gols_time) and delta_gols_time >= 0.35
+    gols_sofridos_ok = pd.isna(delta_gols_sofridos) or delta_gols_sofridos <= 0.2
+    gols_sofridos_ruim = not pd.isna(delta_gols_sofridos) and delta_gols_sofridos >= 0.35
+    clean_sheet_ok = pd.isna(delta_clean_sheet) or delta_clean_sheet >= -0.08
+    clean_sheet_forte = not pd.isna(delta_clean_sheet) and delta_clean_sheet >= 0.12
 
-    strong_up = top_recent and impact >= 0.2 and ataque_ok and current < 7
-    moderate_up = position <= 10 and impact >= 0.35 and ataque_forte and current < 7
-    strong_down = bottom_recent and impact <= -0.2 and ataque_fraco and current > 1
-    moderate_down = (impact <= -0.5 and position >= 10 and current >= 4 and ataque_fraco) or (
-        current >= 5 and ataque_muito_fraco and impact <= 0
+    coletivo_ok = gols_time_ok and (gols_sofridos_ok or clean_sheet_ok)
+    coletivo_forte = gols_time_forte and (not gols_sofridos_ruim or clean_sheet_forte)
+    coletivo_fraco = (not gols_time_ok) and (gols_sofridos_ruim or not clean_sheet_ok)
+
+    strong_up = top_recent and impact >= 0.2 and ataque_ok and coletivo_ok and current < 7
+    moderate_up = position <= 10 and impact >= 0.35 and ataque_forte and coletivo_forte and current < 7
+    strong_down = bottom_recent and impact <= -0.2 and ataque_fraco and coletivo_fraco and current > 1
+    moderate_down = (impact <= -0.5 and position >= 10 and current >= 4 and ataque_fraco and coletivo_fraco) or (
+        current >= 5 and ataque_muito_fraco and impact <= 0 and not coletivo_ok
     )
 
     participacao_trecho = ""
@@ -232,6 +366,12 @@ def evaluate_recommendation(row: pd.Series) -> dict:
             f" Produziu {participacao_real_pg:.2f} participacoes por jogo, contra {participacao_esperada:.2f} "
             f"esperadas para a faixa de nota {current}."
         )
+    coletivo_trecho = ""
+    if not pd.isna(gols_time_pg) and not pd.isna(gols_sofridos_pg) and not pd.isna(jogos_sem_sofrer_pg):
+        coletivo_trecho = (
+            f" Seus times tiveram media de {gols_time_pg:.2f} gols marcados, {gols_sofridos_pg:.2f} sofridos "
+            f"e {jogos_sem_sofrer_pg:.2f} jogos sem sofrer gols por aparicao."
+        )
 
     if strong_up or moderate_up:
         new_rating = min(7, current + 1)
@@ -239,6 +379,7 @@ def evaluate_recommendation(row: pd.Series) -> dict:
             f"Classificacao recente como criterio principal: ficou na posicao {int(position)} e ajudou seus times a renderem "
             f"acima do esperado, com impacto ajustado de {impact:.2f} nas ultimas 6 peladas."
             f"{participacao_trecho}"
+            f"{coletivo_trecho}"
         )
         regra = "strong_up" if strong_up else "moderate_up"
         signal = "subir"
@@ -248,6 +389,7 @@ def evaluate_recommendation(row: pd.Series) -> dict:
             f"Classificacao recente como criterio principal: ficou na posicao {int(position)} e o impacto ajustado foi "
             f"{impact:.2f}, sinalizando rendimento abaixo do esperado no recorte recente."
             f"{participacao_trecho}"
+            f"{coletivo_trecho}"
         )
         regra = "strong_down" if strong_down else "moderate_down"
         signal = "descer"
@@ -257,6 +399,7 @@ def evaluate_recommendation(row: pd.Series) -> dict:
             f"Classificacao recente segue compativel com a nota atual: posicao {int(position)} e impacto ajustado de {impact:.2f} "
             f"sem sinal forte para ajuste."
             f"{participacao_trecho}"
+            f"{coletivo_trecho}"
         )
         regra = "manter"
         signal = "manter"
@@ -269,18 +412,27 @@ def evaluate_recommendation(row: pd.Series) -> dict:
             "ataque_forte": ataque_forte,
             "ataque_fraco": ataque_fraco,
             "ataque_muito_fraco": ataque_muito_fraco,
+            "coletivo_ok": coletivo_ok,
+            "coletivo_forte": coletivo_forte,
+            "coletivo_fraco": coletivo_fraco,
             "strong_up": strong_up,
             "moderate_up": moderate_up,
             "strong_down": strong_down,
             "moderate_down": moderate_down,
         },
         "thresholds": {
-            "subida_principal": "top_recent = True, impacto >= 0.20, ataque_ok = True, nota_atual < 7",
-            "subida_secundaria": "posicao <= 10, impacto >= 0.35, ataque_forte = True, nota_atual < 7",
-            "descida_principal": "bottom_recent = True, impacto <= -0.20, ataque_fraco = True, nota_atual > 1",
+            "subida_principal": (
+                "top_recent = True, impacto >= 0.20, ataque_ok = True, coletivo_ok = True, nota_atual < 7"
+            ),
+            "subida_secundaria": (
+                "posicao <= 10, impacto >= 0.35, ataque_forte = True, coletivo_forte = True, nota_atual < 7"
+            ),
+            "descida_principal": (
+                "bottom_recent = True, impacto <= -0.20, ataque_fraco = True, coletivo_fraco = True, nota_atual > 1"
+            ),
             "descida_secundaria": (
-                "(impacto <= -0.50, posicao >= 10, nota_atual >= 4, ataque_fraco = True) "
-                "ou (nota_atual >= 5, ataque_muito_fraco = True, impacto <= 0)"
+                "(impacto <= -0.50, posicao >= 10, nota_atual >= 4, ataque_fraco = True, coletivo_fraco = True) "
+                "ou (nota_atual >= 5, ataque_muito_fraco = True, impacto <= 0, coletivo_ok = False)"
             ),
         },
         "decision": {
@@ -306,9 +458,21 @@ def build_html(df: pd.DataFrame) -> str:
     )
     numeric_cols = [
         "Impacto_ajustado",
+        "Impacto_gols_time",
+        "Impacto_gols_sofridos",
+        "Impacto_jogos_sem_sofrer",
         "participacao_real_pg",
         "participacao_esperada_pg_nota",
         "delta_participacao_vs_nota",
+        "gols_time_pg",
+        "gols_time_esperados_pg_nota",
+        "delta_gols_time_vs_nota",
+        "gols_sofridos_pg",
+        "gols_sofridos_esperados_pg_nota",
+        "delta_gols_sofridos_vs_nota",
+        "jogos_sem_sofrer_pg",
+        "jogos_sem_sofrer_esperados_pg_nota",
+        "delta_jogos_sem_sofrer_vs_nota",
     ]
     for col in numeric_cols:
         table[col] = table[col].map(lambda x: "" if pd.isna(x) else f"{x:.2f}")
@@ -464,6 +628,7 @@ def main() -> None:
     recent_form = build_recent_form(recent_df, all_recent_names)
     adjusted = build_adjusted_impact(scout_df, recent_df)
     participation_baseline = build_participation_baseline(recent_df, players_df)
+    collective_baseline = build_collective_baseline(recent_df, players_df)
 
     result = players_df.merge(
         recent_form[
@@ -502,6 +667,25 @@ def main() -> None:
         right_on="Jogadores",
         how="left",
         suffixes=("", "_baseline"),
+    ).merge(
+        collective_baseline[
+            [
+                "Jogadores",
+                "Gols_time_pg",
+                "Gols_sofridos_pg",
+                "Jogos_sem_sofrer_pg",
+                "Gols_time_esperados_pg_nota",
+                "Gols_sofridos_esperados_pg_nota",
+                "Jogos_sem_sofrer_esperados_pg_nota",
+                "Delta_gols_time_vs_nota",
+                "Delta_gols_sofridos_vs_nota",
+                "Delta_jogos_sem_sofrer_vs_nota",
+            ]
+        ],
+        left_on="scout_name",
+        right_on="Jogadores",
+        how="left",
+        suffixes=("", "_collective"),
     )
 
     suggestions = result.apply(suggest_row, axis=1, result_type="expand")
@@ -519,9 +703,21 @@ def main() -> None:
             "Posicao",
             "Participacoes_ult6",
             "Impacto_ajustado",
+            "Impacto_gols_time",
+            "Impacto_gols_sofridos",
+            "Impacto_jogos_sem_sofrer",
             "Participacao_real_pg",
             "Participacao_esperada_pg_nota",
             "Delta_participacao_vs_nota",
+            "Gols_time_pg",
+            "Gols_time_esperados_pg_nota",
+            "Delta_gols_time_vs_nota",
+            "Gols_sofridos_pg",
+            "Gols_sofridos_esperados_pg_nota",
+            "Delta_gols_sofridos_vs_nota",
+            "Jogos_sem_sofrer_pg",
+            "Jogos_sem_sofrer_esperados_pg_nota",
+            "Delta_jogos_sem_sofrer_vs_nota",
             "justificativa",
         ]
     ].rename(
@@ -535,6 +731,15 @@ def main() -> None:
             "Participacao_real_pg": "participacao_real_pg",
             "Participacao_esperada_pg_nota": "participacao_esperada_pg_nota",
             "Delta_participacao_vs_nota": "delta_participacao_vs_nota",
+            "Gols_time_pg": "gols_time_pg",
+            "Gols_time_esperados_pg_nota": "gols_time_esperados_pg_nota",
+            "Delta_gols_time_vs_nota": "delta_gols_time_vs_nota",
+            "Gols_sofridos_pg": "gols_sofridos_pg",
+            "Gols_sofridos_esperados_pg_nota": "gols_sofridos_esperados_pg_nota",
+            "Delta_gols_sofridos_vs_nota": "delta_gols_sofridos_vs_nota",
+            "Jogos_sem_sofrer_pg": "jogos_sem_sofrer_pg",
+            "Jogos_sem_sofrer_esperados_pg_nota": "jogos_sem_sofrer_esperados_pg_nota",
+            "Delta_jogos_sem_sofrer_vs_nota": "delta_jogos_sem_sofrer_vs_nota",
         }
     )
 

@@ -60,6 +60,15 @@ def build_team_context(df: pd.DataFrame) -> pd.DataFrame:
                     "Expected_rank": {4: 1, 3: 2, 2: 3, 1: 4}.get(row.expected_points, 4),
                     "Expected_points": row.expected_points,
                     "Delta_points": row.team_delta_points,
+                    "Gols_time": row.gols_time,
+                    "Gols_sofridos": row.gols_sofridos,
+                    "Jogos_sem_sofrer": row.jogos_sem_sofrer,
+                    "Expected_gols_time": row.expected_gols_time,
+                    "Expected_gols_sofridos": row.expected_gols_sofridos,
+                    "Expected_jogos_sem_sofrer": row.expected_jogos_sem_sofrer,
+                    "Delta_gols_time": row.delta_gols_time,
+                    "Delta_gols_sofridos": row.delta_gols_sofridos,
+                    "Delta_jogos_sem_sofrer": row.delta_jogos_sem_sofrer,
                     "Delta_rank": row.team_delta_rank,
                     "Companheiros": ", ".join(player for player in team_players if player != row.Jogadores),
                 }
@@ -90,10 +99,16 @@ def build_player_impact(appearance_df: pd.DataFrame) -> pd.DataFrame:
             Impacto_ajustado=("Delta_points", "mean"),
             Impacto_rank_ajustado=("Delta_rank", "mean"),
             Participacoes_media=("Participacoes", "mean"),
+            Gols_time_medio=("Gols_time", "mean"),
+            Gols_sofridos_medio=("Gols_sofridos", "mean"),
+            Jogos_sem_sofrer_medio=("Jogos_sem_sofrer", "mean"),
+            Impacto_gols_time=("Delta_gols_time", "mean"),
+            Impacto_gols_sofridos=("Delta_gols_sofridos", "mean"),
+            Impacto_clean_sheet=("Delta_jogos_sem_sofrer", "mean"),
             Forca_media_companheiros=("Forca_media_companheiros", "mean"),
             Forca_media_adversarios=("Forca_media_adversarios", "mean"),
         )
-        .sort_values(["Impacto_ajustado", "Impacto_bruto", "Jogadores"], ascending=[False, False, True])
+        .sort_values(["Impacto_ajustado", "Impacto_gols_time", "Impacto_gols_sofridos", "Jogadores"], ascending=[False, False, False, True])
         .reset_index(drop=True)
     )
     impact["Confianca"] = impact["Jogos"].map(classify_confidence)
@@ -121,6 +136,9 @@ def build_pair_synergy(appearance_df: pd.DataFrame) -> pd.DataFrame:
                     "Data": match_date,
                     "Delta_points": delta_points,
                     "Class_points": class_points,
+                    "Gols_time": team_df["Gols_time"].iloc[0],
+                    "Gols_sofridos": team_df["Gols_sofridos"].iloc[0],
+                    "Jogos_sem_sofrer": team_df["Jogos_sem_sofrer"].iloc[0],
                 }
             )
     pair_df = pd.DataFrame(rows)
@@ -133,6 +151,9 @@ def build_pair_synergy(appearance_df: pd.DataFrame) -> pd.DataFrame:
             Jogos_juntos=("Data", "count"),
             Sinergia_media=("Delta_points", "mean"),
             Classificacao_media=("Class_points", "mean"),
+            Gols_time_juntos=("Gols_time", "mean"),
+            Gols_sofridos_juntos=("Gols_sofridos", "mean"),
+            Clean_sheet_juntos=("Jogos_sem_sofrer", "mean"),
         )
         .sort_values(["Sinergia_media", "Jogos_juntos"], ascending=[False, False])
     )
