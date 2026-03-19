@@ -12,13 +12,14 @@ import aliases as alias_lib
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-BASE_DIR = SCRIPT_DIR.parent
+BASE_DIR = SCRIPT_DIR
+DESKTOP_DIR = SCRIPT_DIR.parent
 DATA_DIR = SCRIPT_DIR / "data"
 INPUT_FILE = DATA_DIR / "SCOUTS PIXOTADA 2026 - BASE.csv"
 PLAYERS_FILE = DATA_DIR / "players.json"
-CHAT_FILE = BASE_DIR / "pixotada_2026_dashboard" / "Conversa do WhatsApp com Pelada - Pixotada FC.txt"
-OUTPUT_DIR = BASE_DIR / "pixotada_2026_dashboard"
-PUBLIC_DIR = BASE_DIR / "pixotada_public_site"
+CHAT_FILE = DESKTOP_DIR / "pixotada_2026_dashboard" / "Conversa do WhatsApp com Pelada - Pixotada FC.txt"
+OUTPUT_DIR = DESKTOP_DIR / "pixotada_2026_dashboard"
+PUBLIC_DIR = BASE_DIR
 
 POSITION_ORDER = ["Lanterna", "Terceiro", "Segundo", "Campeao"]
 POSITION_LABELS = {

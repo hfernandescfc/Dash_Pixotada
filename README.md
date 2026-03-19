@@ -12,6 +12,9 @@ Fluxo mais simples:
 2. Suba este repositorio no Netlify.
 3. Use a raiz do repositorio como publish directory.
 
+Os scripts publicam os HTMLs diretamente na raiz do repositorio.
+Os CSVs e arquivos auxiliares continuam sendo exportados em `C:\Users\compesa\Desktop\pixotada_2026_dashboard`.
+
 O arquivo `netlify.toml` configura:
 
 - `publish = "."`
