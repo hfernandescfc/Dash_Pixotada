@@ -293,8 +293,8 @@ def build_general_ranking_context(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_general_ranking_html(historic: pd.DataFrame, monthly: pd.DataFrame) -> str:
-    historic_top = historic.head(20).copy()
-    monthly_top = monthly.head(20).copy()
+    historic_top = historic.copy()
+    monthly_top = monthly.copy()
     for table in [historic_top, monthly_top]:
         for column in table.columns:
             if table[column].dtype.kind in {"f"}:
