@@ -1,6 +1,9 @@
 from pathlib import Path
+import json
 
 import pandas as pd
+import plotly.graph_objects as go
+from plotly.offline import get_plotlyjs
 
 from pixotada_dashboard import BASE_DIR, OUTPUT_DIR, PUBLIC_DIR, POSITION_LABELS, load_data
 
@@ -360,6 +363,7 @@ def build_general_ranking_html(historic: pd.DataFrame, monthly: pd.DataFrame) ->
       <div class="nav">
         <a href="dashboard_pixotada_2026.html">Dashboard</a>
         <a href="ranking_geral_jogadores.html">Ranking geral</a>
+        <a href="raio_x_jogador.html">Raio X do jogador</a>
         <a href="ranking_modelos_ultimas4.html">Modelos de pontuacao</a>
         <a href="efeito_jogadores.html">Efeito dos jogadores</a>
         <a href="sugestao_novas_notas.html">Sugestao de notas</a>
@@ -380,6 +384,542 @@ def build_general_ranking_html(historic: pd.DataFrame, monthly: pd.DataFrame) ->
     </section>
   </main>
 {TABLE_UI_SCRIPT}
+</body>
+</html>
+"""
+
+
+def classify_confidence(games: int) -> str:
+    if games >= 8:
+        return "Alta"
+    if games >= 5:
+        return "Media"
+    if games >= 3:
+        return "Baixa"
+    return "Muito baixa"
+
+
+def build_player_xray_history(appearance_df: pd.DataFrame) -> pd.DataFrame:
+    history_frames = []
+    for match_date in sorted(appearance_df["Data"].drop_duplicates()):
+        cumulative = appearance_df.loc[appearance_df["Data"] <= match_date].copy()
+        ranking = build_general_ranking(cumulative, match_date.strftime("%Y-%m-%d"), min_games=1)
+        if ranking.empty:
+            continue
+        ranking["Data"] = match_date
+        ranking["Data_fmt"] = match_date.strftime("%d/%m/%Y")
+        ranking["Mes"] = match_date.strftime("%Y-%m")
+        ranking["Confianca"] = ranking["Jogos"].map(classify_confidence)
+        history_frames.append(ranking)
+
+    if not history_frames:
+        return pd.DataFrame()
+
+    history_df = pd.concat(history_frames, ignore_index=True)
+    detail_columns = [
+        "Data",
+        "Jogadores",
+        "Time",
+        "Gol",
+        "Assist",
+        "Participacoes",
+        "Classificacao",
+        "Expected_points",
+        "Delta_points",
+        "Gols_time",
+        "Gols_sofridos",
+        "Jogos_sem_sofrer",
+        "Companheiros",
+    ]
+    history_df = history_df.merge(
+        appearance_df[detail_columns],
+        on=["Data", "Jogadores"],
+        how="left",
+    )
+    history_df = history_df.loc[history_df["Time"].notna()].copy()
+    history_df["Time"] = history_df["Time"].astype(int)
+    return history_df.sort_values(["Jogadores", "Data"]).reset_index(drop=True)
+
+
+def build_player_xray_summary(
+    appearance_df: pd.DataFrame,
+    history_df: pd.DataFrame,
+    general_historic: pd.DataFrame,
+    general_month: pd.DataFrame,
+) -> pd.DataFrame:
+    latest_positions = (
+        history_df.sort_values(["Jogadores", "Data"])
+        .groupby("Jogadores", as_index=False)
+        .tail(1)[["Jogadores", "Posicao", "Score_geral", "Data", "Data_fmt"]]
+        .rename(
+            columns={
+                "Posicao": "PosicaoAtualHistoricoBruto",
+                "Score_geral": "ScoreAtualHistoricoBruto",
+                "Data": "UltimaData",
+                "Data_fmt": "UltimaDataFmt",
+            }
+        )
+    )
+
+    trend_rows = []
+    for player, player_df in history_df.groupby("Jogadores"):
+        last_positions = player_df.sort_values("Data")["Posicao"].tail(3).tolist()
+        if len(last_positions) < 2:
+            trend = "Sem tendencia"
+        elif last_positions[-1] < last_positions[0]:
+            trend = "Subindo"
+        elif last_positions[-1] > last_positions[0]:
+            trend = "Caindo"
+        else:
+            trend = "Estavel"
+        trend_rows.append({"Jogadores": player, "Tendencia": trend})
+    trend_df = pd.DataFrame(trend_rows)
+
+    distribution_rows = []
+    for player, player_df in appearance_df.groupby("Jogadores"):
+        counts = player_df["Classificacao"].value_counts().to_dict()
+        distribution_rows.append(
+            {
+                "Jogadores": player,
+                "Titulos": int(counts.get("Campeao", 0)),
+                "Segundos": int(counts.get("Segundo", 0)),
+                "Terceiros": int(counts.get("Terceiro", 0)),
+                "Lanternas": int(counts.get("Lanterna", 0)),
+            }
+        )
+    distribution_df = pd.DataFrame(distribution_rows)
+
+    summary = (
+        appearance_df.groupby("Jogadores", as_index=False)
+        .agg(
+            Jogos=("Data", "count"),
+            Gols_pg=("Gol", "mean"),
+            Assist_pg=("Assist", "mean"),
+            Participacoes_pg=("Participacoes", "mean"),
+            GolsTime_pg=("Gols_time", "mean"),
+            GolsSofridos_pg=("Gols_sofridos", "mean"),
+            JogosSemSofrer_pg=("Jogos_sem_sofrer", "mean"),
+            Delta_points_pg=("Delta_points", "mean"),
+        )
+        .merge(latest_positions, on="Jogadores", how="left")
+        .merge(trend_df, on="Jogadores", how="left")
+        .merge(distribution_df, on="Jogadores", how="left")
+        .merge(
+            general_historic[["Jogadores", "Posicao", "Score_geral"]].rename(
+                columns={"Posicao": "PosicaoRankingGeral", "Score_geral": "ScoreRankingGeral"}
+            ),
+            on="Jogadores",
+            how="left",
+        )
+        .merge(
+            general_month[["Jogadores", "Posicao", "Score_geral"]].rename(
+                columns={"Posicao": "PosicaoRankingMes", "Score_geral": "ScoreRankingMes"}
+            ),
+            on="Jogadores",
+            how="left",
+        )
+    )
+    return summary.sort_values("Jogadores").reset_index(drop=True)
+
+
+def build_player_xray_html(history_df: pd.DataFrame, summary_df: pd.DataFrame) -> str:
+    if history_df.empty or summary_df.empty:
+        return """
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Raio X do jogador</title></head>
+<body><p>Sem dados suficientes para gerar o Raio X do jogador.</p></body>
+</html>
+"""
+
+    players = sorted(summary_df["Jogadores"].tolist())
+    first_player = players[0]
+    payload = {}
+
+    for player in players:
+        player_summary = summary_df.loc[summary_df["Jogadores"] == player].iloc[0]
+        player_history = history_df.loc[history_df["Jogadores"] == player].sort_values("Data").copy()
+        best_row = player_history.sort_values(["Posicao", "Delta_points", "Data"], ascending=[True, False, True]).iloc[0]
+        worst_row = player_history.sort_values(["Posicao", "Delta_points", "Data"], ascending=[False, True, False]).iloc[0]
+        payload[player] = {
+            "summary": {
+                "jogos": int(player_summary["Jogos"]),
+                "posicao_ranking_geral": None
+                if pd.isna(player_summary["PosicaoRankingGeral"])
+                else int(player_summary["PosicaoRankingGeral"]),
+                "score_ranking_geral": None
+                if pd.isna(player_summary["ScoreRankingGeral"])
+                else round(float(player_summary["ScoreRankingGeral"]), 2),
+                "posicao_ranking_mes": None
+                if pd.isna(player_summary["PosicaoRankingMes"])
+                else int(player_summary["PosicaoRankingMes"]),
+                "score_ranking_mes": None
+                if pd.isna(player_summary["ScoreRankingMes"])
+                else round(float(player_summary["ScoreRankingMes"]), 2),
+                "gols_pg": round(float(player_summary["Gols_pg"]), 2),
+                "assist_pg": round(float(player_summary["Assist_pg"]), 2),
+                "participacoes_pg": round(float(player_summary["Participacoes_pg"]), 2),
+                "gols_time_pg": round(float(player_summary["GolsTime_pg"]), 2),
+                "gols_sofridos_pg": round(float(player_summary["GolsSofridos_pg"]), 2),
+                "sg_pg": round(float(player_summary["JogosSemSofrer_pg"]), 2),
+                "delta_points_pg": round(float(player_summary["Delta_points_pg"]), 2),
+                "tendencia": player_summary["Tendencia"],
+                "titulos": int(player_summary["Titulos"]),
+                "segundos": int(player_summary["Segundos"]),
+                "terceiros": int(player_summary["Terceiros"]),
+                "lanternas": int(player_summary["Lanternas"]),
+                "ultima_data": player_summary["UltimaDataFmt"],
+                "melhor_data": best_row["Data_fmt"],
+                "melhor_posicao": int(best_row["Posicao"]),
+                "pior_data": worst_row["Data_fmt"],
+                "pior_posicao": int(worst_row["Posicao"]),
+            },
+            "history": [
+                {
+                    "data": row.Data.strftime("%Y-%m-%d"),
+                    "data_fmt": row.Data_fmt,
+                    "mes": row.Mes,
+                    "posicao": int(row.Posicao),
+                    "score": round(float(row.Score_geral), 2),
+                    "jogos": int(row.Jogos),
+                    "confianca": row.Confianca,
+                    "time": int(row.Time),
+                    "classificacao": POSITION_LABELS.get(row.Classificacao, row.Classificacao),
+                    "gols": int(row.Gol),
+                    "assistencias": int(row.Assist),
+                    "participacoes": int(row.Participacoes),
+                    "gols_time": int(row.Gols_time),
+                    "gols_sofridos": int(row.Gols_sofridos),
+                    "sg": int(row.Jogos_sem_sofrer),
+                    "expected_points": round(float(row.Expected_points), 2),
+                    "delta_points": round(float(row.Delta_points), 2),
+                    "companheiros": row.Companheiros,
+                }
+                for row in player_history.itertuples()
+            ],
+        }
+
+    first_dates = ["geral"] + [item["data"] for item in payload[first_player]["history"]]
+    plotly_js = get_plotlyjs()
+
+    return f"""
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Raio X do jogador</title>
+  <script>{plotly_js}</script>
+  <style>
+    body {{
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f6f1e8;
+      color: #1f2933;
+    }}
+    .wrap {{
+      width: min(1400px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 40px;
+    }}
+    .hero, .card {{
+      background: #fffdf8;
+      border: 1px solid #dccfb8;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 10px 24px rgba(66, 52, 23, 0.06);
+    }}
+    .nav {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }}
+    .nav a {{
+      text-decoration: none;
+      color: #1f2933;
+      background: rgba(255,255,255,0.78);
+      border: 1px solid #dccfb8;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 600;
+    }}
+    .selectors {{
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 280px));
+      gap: 14px;
+      margin-top: 18px;
+    }}
+    .selectors label {{
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-weight: 600;
+    }}
+    .selectors select {{
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #dccfb8;
+      background: #fff;
+      font-size: 15px;
+    }}
+    .grid {{
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      margin-top: 20px;
+    }}
+    .summary-grid, .detail-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }}
+    .mini-card {{
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid #eadfc9;
+      background: #fffaf1;
+    }}
+    .mini-card span {{
+      display: block;
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 6px;
+    }}
+    .mini-card strong {{
+      font-size: 24px;
+    }}
+    .detail-grid .mini-card strong {{
+      font-size: 20px;
+    }}
+    .detail-note {{
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid #eadfc9;
+      background: #fffaf1;
+      line-height: 1.5;
+    }}
+    .hidden {{
+      display: none;
+    }}
+    #ranking-history-chart {{
+      width: 100%;
+      height: 420px;
+    }}
+    @media (max-width: 720px) {{
+      .selectors {{
+        grid-template-columns: 1fr;
+      }}
+    }}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>Raio X do jogador</h1>
+      <p>Visao individual com evolucao no ranking ao longo do tempo e detalhamento por data.</p>
+      <div class="nav">
+        <a href="dashboard_pixotada_2026.html">Dashboard</a>
+        <a href="ranking_geral_jogadores.html">Ranking geral</a>
+        <a href="raio_x_jogador.html">Raio X do jogador</a>
+        <a href="ranking_modelos_ultimas4.html">Modelos de pontuacao</a>
+        <a href="efeito_jogadores.html">Efeito dos jogadores</a>
+        <a href="sugestao_novas_notas.html">Sugestao de notas</a>
+        <a href="detalhe_recomendacoes_notas.html">Detalhe das recomendacoes</a>
+      </div>
+      <div class="selectors">
+        <label for="player-select">Selecione o jogador
+          <select id="player-select"></select>
+        </label>
+        <label for="date-select">Selecione a data
+          <select id="date-select"></select>
+        </label>
+      </div>
+    </section>
+    <section class="card" style="margin-top:20px;">
+      <h2>Evolucao no ranking</h2>
+      <div id="ranking-history-chart"></div>
+    </section>
+    <section class="grid">
+      <section class="card">
+        <h2>Resumo geral</h2>
+        <div id="summary-grid" class="summary-grid"></div>
+        <div id="general-detail" class="detail-note"></div>
+      </section>
+      <section id="date-card" class="card hidden">
+        <h2 id="date-title">Detalhe da data</h2>
+        <div id="date-detail-grid" class="detail-grid"></div>
+        <div id="date-detail-note" class="detail-note"></div>
+      </section>
+    </section>
+  </main>
+  <script>
+    const playerPayload = {json.dumps(payload, ensure_ascii=False)};
+    const playerSelect = document.getElementById("player-select");
+    const dateSelect = document.getElementById("date-select");
+    const summaryGrid = document.getElementById("summary-grid");
+    const generalDetail = document.getElementById("general-detail");
+    const dateCard = document.getElementById("date-card");
+    const dateTitle = document.getElementById("date-title");
+    const dateDetailGrid = document.getElementById("date-detail-grid");
+    const dateDetailNote = document.getElementById("date-detail-note");
+
+    function metric(label, value) {{
+      return `<div class="mini-card"><span>${{label}}</span><strong>${{value}}</strong></div>`;
+    }}
+
+    function formatNumber(value, digits = 2) {{
+      if (value === null || value === undefined || Number.isNaN(value)) return "-";
+      return Number(value).toFixed(digits);
+    }}
+
+    function formatSigned(value, digits = 2) {{
+      if (value === null || value === undefined || Number.isNaN(value)) return "-";
+      const formatted = Number(value).toFixed(digits);
+      return value > 0 ? `+${{formatted}}` : formatted;
+    }}
+
+    function renderDateOptions(player, selectedDate = "geral") {{
+      const history = playerPayload[player].history;
+      dateSelect.innerHTML = "";
+      const overallOption = document.createElement("option");
+      overallOption.value = "geral";
+      overallOption.textContent = "Visao geral";
+      dateSelect.appendChild(overallOption);
+      history.forEach(item => {{
+        const option = document.createElement("option");
+        option.value = item.data;
+        option.textContent = item.data_fmt;
+        dateSelect.appendChild(option);
+      }});
+      dateSelect.value = selectedDate;
+    }}
+
+    function renderSummary(player) {{
+      const summary = playerPayload[player].summary;
+      summaryGrid.innerHTML = [
+        metric("Posicao no ranking geral", summary.posicao_ranking_geral ?? "-"),
+        metric("Posicao no mes", summary.posicao_ranking_mes ?? "-"),
+        metric("Jogos", summary.jogos),
+        metric("Gols/pelada", formatNumber(summary.gols_pg)),
+        metric("Assist/pelada", formatNumber(summary.assist_pg)),
+        metric("Participacoes/pelada", formatNumber(summary.participacoes_pg)),
+        metric("Gols do time/pelada", formatNumber(summary.gols_time_pg)),
+        metric("Gols sofridos/pelada", formatNumber(summary.gols_sofridos_pg)),
+        metric("SG/pelada", formatNumber(summary.sg_pg)),
+        metric("Delta pontos/pelada", formatSigned(summary.delta_points_pg)),
+        metric("Tendencia", summary.tendencia),
+        metric("Ultima pelada", summary.ultima_data),
+      ].join("");
+      generalDetail.innerHTML = `
+        <strong>Distribuicao de classificacoes</strong><br>
+        Campeao: ${{summary.titulos}} | Segundo: ${{summary.segundos}} | Terceiro: ${{summary.terceiros}} | Lanterna: ${{summary.lanternas}}<br><br>
+        <strong>Melhor momento</strong><br>
+        ${{summary.melhor_data}} (posicao ${{summary.melhor_posicao}})<br><br>
+        <strong>Pior momento</strong><br>
+        ${{summary.pior_data}} (posicao ${{summary.pior_posicao}})
+      `;
+    }}
+
+    function renderDateDetail(player, selectedDate) {{
+      if (selectedDate === "geral") {{
+        dateCard.classList.add("hidden");
+        return;
+      }}
+      const item = playerPayload[player].history.find(entry => entry.data === selectedDate);
+      if (!item) {{
+        dateCard.classList.add("hidden");
+        return;
+      }}
+      dateCard.classList.remove("hidden");
+      dateTitle.textContent = `Detalhe da pelada: ${{item.data_fmt}}`;
+      dateDetailGrid.innerHTML = [
+        metric("Posicao no ranking", item.posicao),
+        metric("Score", formatNumber(item.score)),
+        metric("Jogos acumulados", item.jogos),
+        metric("Confianca", item.confianca),
+        metric("Time", item.time),
+        metric("Classificacao", item.classificacao),
+        metric("Gols", item.gols),
+        metric("Assistencias", item.assistencias),
+        metric("Participacoes", item.participacoes),
+        metric("Gols do time", item.gols_time),
+        metric("Gols sofridos", item.gols_sofridos),
+        metric("Jogo sem sofrer gols", item.sg ? "Sim" : "Nao"),
+        metric("Pontos esperados", formatNumber(item.expected_points)),
+        metric("Delta pontos", formatSigned(item.delta_points)),
+      ].join("");
+      dateDetailNote.innerHTML = `
+        <strong>Companheiros</strong><br>
+        ${{item.companheiros || "-"}}
+      `;
+    }}
+
+    function renderChart(player) {{
+      const history = playerPayload[player].history;
+      const trace = {{
+        x: history.map(item => item.data_fmt),
+        y: history.map(item => item.posicao),
+        customdata: history.map(item => [
+          item.score,
+          item.classificacao,
+          item.delta_points,
+          item.time,
+          item.gols,
+          item.assistencias,
+        ]),
+        mode: "lines+markers",
+        line: {{ color: "#0f766e", width: 3 }},
+        marker: {{ size: 9, color: "#b45309" }},
+        hovertemplate:
+          "<b>%{{x}}</b><br>" +
+          "Posicao: %{{y}}<br>" +
+          "Score: %{{customdata[0]:.2f}}<br>" +
+          "Classificacao: %{{customdata[1]}}<br>" +
+          "Delta pontos: %{{customdata[2]:+.2f}}<br>" +
+          "Time: %{{customdata[3]}}<br>" +
+          "Gols/Assist: %{{customdata[4]}} / %{{customdata[5]}}<extra></extra>",
+      }};
+      const maxRank = Math.max(...history.map(item => item.posicao)) + 1;
+      Plotly.newPlot("ranking-history-chart", [trace], {{
+        margin: {{ l: 60, r: 20, t: 20, b: 50 }},
+        paper_bgcolor: "#fffdf8",
+        plot_bgcolor: "#fff",
+        xaxis: {{ title: "Data" }},
+        yaxis: {{ title: "Posicao", autorange: "reversed", range: [maxRank, 1] }},
+      }}, {{ responsive: true, displayModeBar: false }});
+
+      const chart = document.getElementById("ranking-history-chart");
+      chart.on("plotly_click", event => {{
+        const point = event.points && event.points[0];
+        if (!point) return;
+        const selected = history[point.pointIndex];
+        dateSelect.value = selected.data;
+        renderDateDetail(player, selected.data);
+      }});
+    }}
+
+    function renderPlayer(player, selectedDate = "geral") {{
+      renderDateOptions(player, selectedDate);
+      renderSummary(player);
+      renderDateDetail(player, dateSelect.value);
+      renderChart(player);
+    }}
+
+    Object.keys(playerPayload).forEach(player => {{
+      const option = document.createElement("option");
+      option.value = player;
+      option.textContent = player;
+      playerSelect.appendChild(option);
+    }});
+
+    playerSelect.value = {json.dumps(first_player, ensure_ascii=False)};
+    renderPlayer(playerSelect.value, "geral");
+
+    playerSelect.addEventListener("change", event => renderPlayer(event.target.value, "geral"));
+    dateSelect.addEventListener("change", event => renderDateDetail(playerSelect.value, event.target.value));
+  </script>
 </body>
 </html>
 """
@@ -609,6 +1149,16 @@ def main() -> None:
     (OUTPUT_DIR / "ranking_geral_jogadores.html").write_text(general_html, encoding="utf-8")
     (BASE_DIR / "ranking_geral_jogadores.html").write_text(general_html, encoding="utf-8")
     (PUBLIC_DIR / "ranking_geral_jogadores.html").write_text(general_html, encoding="utf-8")
+
+    xray_history = build_player_xray_history(appearance_df)
+    xray_summary = build_player_xray_summary(appearance_df, xray_history, general_historic, general_month)
+    xray_history.to_csv(OUTPUT_DIR / "raio_x_jogador_historico.csv", index=False, encoding="utf-8-sig")
+    xray_summary.to_csv(OUTPUT_DIR / "raio_x_jogador_resumo.csv", index=False, encoding="utf-8-sig")
+
+    xray_html = build_player_xray_html(xray_history, xray_summary)
+    (OUTPUT_DIR / "raio_x_jogador.html").write_text(xray_html, encoding="utf-8")
+    (BASE_DIR / "raio_x_jogador.html").write_text(xray_html, encoding="utf-8")
+    (PUBLIC_DIR / "raio_x_jogador.html").write_text(xray_html, encoding="utf-8")
 
     print(f"Arquivos gerados em: {OUTPUT_DIR}")
 

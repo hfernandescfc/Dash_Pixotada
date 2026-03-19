@@ -1867,7 +1867,7 @@ def build_general_ranking_spotlight() -> str:
       </div>
       <div id="ranking-geral-historico" class="table-wrap">{historic_table}</div>
       <div id="ranking-geral-mes" class="table-wrap" style="display:none;">{current_table}</div>
-      <p><a href="ranking_geral_jogadores.html">Abrir pagina completa do ranking geral</a></p>
+      <p><a href="ranking_geral_jogadores.html">Abrir pagina completa do ranking geral</a> | <a href="raio_x_jogador.html">Abrir Raio X do jogador</a></p>
     </section>
     <script>
       const rankingSelect = document.getElementById("ranking-geral-select");
@@ -2101,6 +2101,7 @@ def build_dashboard(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> str
         <a href="dashboard_pixotada_2026.html">Dashboard</a>
         <a href="ranking_modelos_ultimas4.html">Modelos de pontuação</a>
         <a href="ranking_geral_jogadores.html">Ranking geral</a>
+        <a href="raio_x_jogador.html">Raio X do jogador</a>
         <a href="efeito_jogadores.html">Efeito dos jogadores</a>
         <a href="sugestao_novas_notas.html">Sugestão de notas</a>
         <a href="detalhe_recomendacoes_notas.html">Detalhe das recomendações</a>
@@ -2164,10 +2165,54 @@ def build_dashboard(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> str
 """
 
 
+def build_audit_scouts_export(df: pd.DataFrame) -> pd.DataFrame:
+    audit_df = (
+        df.rename(
+            columns={
+                "mes": "Mes",
+                "classificacao": "Classificacao",
+                "Gol": "Gols",
+                "Assist": "Assistencias",
+                "participacoes": "Participacoes",
+                "gols_time": "GolsTime",
+                "gols_sofridos": "GolsSofridos",
+                "jogos_sem_sofrer": "JogosSemSofrer",
+                "resultados_extraidos": "ResultadosExtraidos",
+            }
+        )
+        .assign(
+            Data=lambda x: x["Data"].dt.strftime("%Y-%m-%d"),
+            FonteScouts="SCOUTS PIXOTADA 2026 - BASE.csv",
+            FonteResultados="Conversa do WhatsApp com Pelada - Pixotada FC.txt",
+        )
+        .sort_values(["Data", "Time", "Jogadores"], ascending=[True, True, True])
+        .reset_index(drop=True)
+    )
+
+    ordered_columns = [
+        "Data",
+        "Mes",
+        "Jogadores",
+        "Time",
+        "Classificacao",
+        "Gols",
+        "Assistencias",
+        "Participacoes",
+        "GolsTime",
+        "GolsSofridos",
+        "JogosSemSofrer",
+        "ResultadosExtraidos",
+        "FonteScouts",
+        "FonteResultados",
+    ]
+    return audit_df[ordered_columns]
+
+
 def write_outputs(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> None:
     OUTPUT_DIR.mkdir(exist_ok=True)
     PUBLIC_DIR.mkdir(exist_ok=True)
     diagnostics_df = df.attrs.get("match_result_diagnostics", pd.DataFrame())
+    audit_export = build_audit_scouts_export(df)
 
     csv_exports = {
         "base_scouts_enriquecida": df.rename(
@@ -2180,6 +2225,7 @@ def write_outputs(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> None:
                 "resultados_extraidos": "ResultadosExtraidos",
             }
         ).drop(columns=["classificacao_norm", "mes"]),
+        "scouts_consolidados_auditoria": audit_export,
         "resumo_jogadores": summaries["resumo_jogadores"].rename(
             columns={"Assistencias": "Assistencias", "Participacoes": "Participacoes"}
         ),
@@ -2191,10 +2237,16 @@ def write_outputs(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> None:
     }
 
     for name, summary in csv_exports.items():
-        summary.to_csv(OUTPUT_DIR / f"{name}.csv", index=False, encoding="utf-8-sig")
+        try:
+            summary.to_csv(OUTPUT_DIR / f"{name}.csv", index=False, encoding="utf-8-sig")
+        except PermissionError:
+            print(f"Aviso: nao foi possivel sobrescrever {name}.csv porque o arquivo esta aberto em outro programa.")
 
     if not diagnostics_df.empty:
-        diagnostics_df.to_csv(OUTPUT_DIR / "diagnostico_resultados_peladas.csv", index=False, encoding="utf-8-sig")
+        try:
+            diagnostics_df.to_csv(OUTPUT_DIR / "diagnostico_resultados_peladas.csv", index=False, encoding="utf-8-sig")
+        except PermissionError:
+            print("Aviso: nao foi possivel sobrescrever diagnostico_resultados_peladas.csv porque o arquivo esta aberto em outro programa.")
 
     html = build_dashboard(df, summaries)
     (OUTPUT_DIR / "dashboard_pixotada_2026.html").write_text(html, encoding="utf-8")
