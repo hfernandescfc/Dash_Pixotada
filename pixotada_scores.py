@@ -316,7 +316,7 @@ def build_general_ranking_html(historic: pd.DataFrame, monthly: pd.DataFrame) ->
       color: #1f2933;
     }}
     .wrap {{
-      width: min(1280px, calc(100% - 32px));
+      width: min(1400px, calc(100% - 32px));
       margin: 0 auto;
       padding: 24px 0 40px;
     }}
@@ -354,15 +354,16 @@ def build_general_ranking_html(historic: pd.DataFrame, monthly: pd.DataFrame) ->
 <body>
   <main class="wrap">
     <section class="hero">
-      <h1>Ranking Geral dos Jogadores</h1>
+      <h1>Ranking geral</h1>
       <p>Ranking orientado por medias por pelada, sem duplicar participacoes com gols e assistencias.</p>
       <p>Pesos: 25% gols, 20% assistencias, 15% gols do time, 15% gols sofridos invertidos, 10% jogos sem sofrer gols e 15% classificacao final x esperada.</p>
       <div class="nav">
         <a href="dashboard_pixotada_2026.html">Dashboard</a>
-        <a href="ranking_modelos_ultimas4.html">Modelos de pontuacao</a>
         <a href="ranking_geral_jogadores.html">Ranking geral</a>
+        <a href="ranking_modelos_ultimas4.html">Modelos de pontuacao</a>
         <a href="efeito_jogadores.html">Efeito dos jogadores</a>
         <a href="sugestao_novas_notas.html">Sugestao de notas</a>
+        <a href="detalhe_recomendacoes_notas.html">Detalhe das recomendacoes</a>
       </div>
     </section>
     <section class="grid">
@@ -492,7 +493,7 @@ def build_html(rankings: dict[str, pd.DataFrame], comparison: pd.DataFrame) -> s
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <title>Ranking Pixotada 2026 - Modelos</title>
+  <title>Modelos de pontuacao</title>
   <style>
     body {{
       margin: 0;
@@ -501,7 +502,7 @@ def build_html(rankings: dict[str, pd.DataFrame], comparison: pd.DataFrame) -> s
       color: #1f2933;
     }}
     .wrap {{
-      width: min(1280px, calc(100% - 32px));
+      width: min(1400px, calc(100% - 32px));
       margin: 0 auto;
       padding: 24px 0 40px;
     }}
@@ -544,6 +545,7 @@ def build_html(rankings: dict[str, pd.DataFrame], comparison: pd.DataFrame) -> s
       <p>O modelo equilibrado foi usado como referência principal para ordenar a tabela comparativa.</p>
       <div class="nav">
         <a href="dashboard_pixotada_2026.html">Dashboard</a>
+        <a href="ranking_geral_jogadores.html">Ranking geral</a>
         <a href="ranking_modelos_ultimas4.html">Modelos de pontuação</a>
         <a href="efeito_jogadores.html">Efeito dos jogadores</a>
         <a href="sugestao_novas_notas.html">Sugestão de notas</a>

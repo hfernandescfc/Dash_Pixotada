@@ -18,10 +18,8 @@ from rating_recommendations import (
 )
 
 
-BASE_DIR = Path(r"c:\Users\compesa\Desktop")
-EXPECTED_POINTS_MAP = {1.0: 4, 2.0: 3, 3.0: 2, 4.0: 1}
+BASE_DIR = Path(__file__).resolve().parent
 CLASS_LABELS = {"Campeao": "Campeão", "Segundo": "Segundo", "Terceiro": "Terceiro", "Lanterna": "Lanterna"}
-CLASS_POINTS = {"Campeao": 4, "Segundo": 3, "Terceiro": 2, "Lanterna": 1}
 
 
 def compute_base():
@@ -30,8 +28,6 @@ def compute_base():
     recent_df = scout_df[scout_df["Data"].isin(last6_dates)].copy()
 
     players_df = load_players()
-
-    games_count = recent_df.groupby("Jogadores").size().rename("Jogos_ult6").reset_index()
     all_recent_names = sorted(recent_df["Jogadores"].drop_duplicates().tolist())
 
     recent_form = build_recent_form(recent_df, all_recent_names)
@@ -103,10 +99,7 @@ def compute_base():
 
 def build_match_details(scout_df: pd.DataFrame, recent_df: pd.DataFrame) -> pd.DataFrame:
     merged = build_pre_match_expected_results(scout_df, recent_df).rename(columns={"forca_observada": "rating_base"})
-    team_strength = (
-        merged.groupby(["Data", "Time"], as_index=False)
-        .agg(team_rating_mean=("rating_base", "mean"))
-    )
+    team_strength = merged.groupby(["Data", "Time"], as_index=False).agg(team_rating_mean=("rating_base", "mean"))
     merged = merged.merge(team_strength, on=["Data", "Time"], how="left")
 
     rows = []
@@ -147,6 +140,8 @@ def build_match_details(scout_df: pd.DataFrame, recent_df: pd.DataFrame) -> pd.D
 
 def build_payload(result: pd.DataFrame, match_df: pd.DataFrame) -> dict:
     payload = {}
+    known_players = set(match_df["Jogadores"].unique())
+
     for row in result.itertuples():
         player = row.scout_name
         player_matches = match_df[match_df["Jogadores"] == player].copy()
@@ -201,7 +196,7 @@ def build_payload(result: pd.DataFrame, match_df: pd.DataFrame) -> dict:
             else round(float(row.Delta_jogos_sem_sofrer_vs_nota), 2),
             "justificativa": row.justificativa,
             "memoria_calculo": evaluation,
-            "tem_correspondencia": player in set(match_df["Jogadores"].unique()),
+            "tem_correspondencia": player in known_players,
             "partidas": player_matches[
                 [
                     "Data_fmt",
@@ -240,12 +235,13 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <title>Detalhamento das Recomendações de Nota</title>
+  <title>Detalhe das recomendacoes</title>
   <style>
     :root {{
       --bg: #f6f1e8;
       --panel: #fffdf8;
       --ink: #1f2933;
+      --muted: #6b7280;
       --line: #dccfb8;
       --accent: #0f766e;
       --up: #1e8449;
@@ -256,38 +252,24 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
     body {{
       margin: 0;
       font-family: "Segoe UI", Arial, sans-serif;
-      background: linear-gradient(180deg, #efe4cf 0%, var(--bg) 40%, #f8f5ef 100%);
+      background: var(--bg);
       color: var(--ink);
     }}
     .wrap {{
-      width: min(1380px, calc(100% - 32px));
+      width: min(1400px, calc(100% - 32px));
       margin: 0 auto;
       padding: 24px 0 40px;
     }}
     .hero, .card {{
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 22px;
-      padding: 22px;
-      box-shadow: 0 12px 30px rgba(88, 71, 35, 0.08);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 10px 24px rgba(66, 52, 23, 0.06);
     }}
     .hero p {{
       margin: 6px 0;
       line-height: 1.5;
-    }}
-    .selector {{
-      margin-top: 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }}
-    .selector select {{
-      max-width: 320px;
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--line);
-      background: #fff;
-      font-size: 15px;
     }}
     .nav {{
       display: flex;
@@ -304,16 +286,81 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
       border-radius: 999px;
       font-weight: 600;
     }}
+    .selector {{
+      margin-top: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 340px;
+    }}
+    .selector select {{
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 15px;
+    }}
     .grid {{
       display: grid;
-      grid-template-columns: 1.2fr 1fr;
+      grid-template-columns: 1.05fr 0.95fr;
       gap: 20px;
       margin-top: 20px;
       align-items: start;
     }}
+    .headline {{
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: start;
+    }}
+    .headline h2 {{
+      margin: 0;
+      font-size: 28px;
+    }}
+    .headline p {{
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }}
+    .tag {{
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-weight: 700;
+      white-space: nowrap;
+      font-size: 13px;
+    }}
+    .tag.subir {{
+      background: #e8f6f3;
+      color: #117864;
+    }}
+    .tag.descer {{
+      background: #fdecea;
+      color: #922b21;
+    }}
+    .tag.manter {{
+      background: #f6efe2;
+      color: #6b5b45;
+    }}
+    .explanation {{
+      margin-top: 16px;
+      padding: 16px 18px;
+      border-radius: 16px;
+      border: 1px solid #eadfc9;
+      background: #fffaf1;
+    }}
+    .explanation h3 {{
+      margin: 0 0 8px;
+      font-size: 18px;
+    }}
+    .explanation p {{
+      margin: 0;
+      line-height: 1.6;
+    }}
     .summary-grid {{
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 12px;
       margin-top: 16px;
     }}
@@ -321,37 +368,83 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
       padding: 14px;
       border: 1px solid #eadfc9;
       border-radius: 16px;
-      background: #fff;
+      background: #fffaf1;
     }}
     .metric span {{
       display: block;
-      color: #6b7280;
+      color: var(--muted);
       font-size: 12px;
       margin-bottom: 6px;
     }}
     .metric strong {{
+      display: block;
       font-size: 22px;
     }}
-    .tag {{
-      display: inline-block;
-      padding: 6px 10px;
-      border-radius: 999px;
-      color: white;
-      font-weight: 600;
-      margin-top: 8px;
+    .metric small {{
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      line-height: 1.4;
     }}
-    .tag.subir {{ background: var(--up); }}
-    .tag.descer {{ background: var(--down); }}
-    .tag.manter {{ background: var(--keep); }}
+    details {{
+      margin-top: 16px;
+      border: 1px solid #eadfc9;
+      border-radius: 16px;
+      background: #fffaf1;
+      overflow: hidden;
+    }}
+    summary {{
+      cursor: pointer;
+      list-style: none;
+      padding: 16px 18px;
+      font-weight: 700;
+    }}
+    summary::-webkit-details-marker {{
+      display: none;
+    }}
+    .details-body {{
+      border-top: 1px solid #efe4cf;
+      padding: 0 18px 18px;
+    }}
+    .calc-grid {{
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }}
+    .calc-item {{
+      border: 1px solid #eadfc9;
+      border-radius: 14px;
+      padding: 12px;
+      background: #fff;
+    }}
+    .calc-item strong {{
+      display: block;
+      margin-bottom: 4px;
+    }}
+    .rule-list {{
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+    }}
+    .rule {{
+      border-left: 4px solid var(--line);
+      padding: 10px 12px;
+      background: #fff;
+      border-radius: 10px;
+    }}
+    .rule.hit {{
+      border-left-color: var(--accent);
+    }}
     .match-list {{
       display: grid;
       gap: 14px;
     }}
     .match {{
       border: 1px solid #eadfc9;
-      border-radius: 18px;
+      border-radius: 16px;
       padding: 16px;
-      background: linear-gradient(180deg, #fffefb 0%, #f8f1e5 100%);
+      background: #fffaf1;
     }}
     .match-head {{
       display: flex;
@@ -372,20 +465,20 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
     .delta.neu {{ color: var(--keep); }}
     .match-grid {{
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 10px;
       margin-bottom: 12px;
     }}
     .mini {{
       padding: 10px;
       border-radius: 14px;
-      background: rgba(255,255,255,0.78);
+      background: #fff;
       border: 1px solid #efe4cf;
     }}
     .mini span {{
       display: block;
       font-size: 12px;
-      color: #6b7280;
+      color: var(--muted);
       margin-bottom: 4px;
     }}
     .mini strong {{
@@ -394,51 +487,12 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
     .people {{
       font-size: 14px;
       line-height: 1.45;
+      color: #374151;
     }}
     .people strong {{
       display: block;
       margin-bottom: 2px;
-    }}
-    .calc-box {{
-      margin-top: 18px;
-      border: 1px solid #eadfc9;
-      border-radius: 18px;
-      padding: 16px;
-      background: linear-gradient(180deg, #fffefb 0%, #f7efe2 100%);
-    }}
-    .calc-box h3 {{
-      margin: 0 0 12px;
-      font-size: 18px;
-    }}
-    .calc-grid {{
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 12px;
-    }}
-    .calc-item {{
-      border: 1px solid #eadfc9;
-      border-radius: 14px;
-      padding: 12px;
-      background: rgba(255,255,255,0.9);
-    }}
-    .calc-item strong {{
-      display: block;
-      margin-bottom: 4px;
-    }}
-    .rule-list {{
-      display: grid;
-      gap: 8px;
-      margin-top: 12px;
-    }}
-    .rule {{
-      border-left: 4px solid var(--line);
-      padding: 10px 12px;
-      background: rgba(255,255,255,0.82);
-      border-radius: 10px;
-    }}
-    .rule.hit {{
-      border-left-color: var(--accent);
+      color: var(--ink);
     }}
     @media (max-width: 980px) {{
       .grid {{
@@ -448,17 +502,28 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }}
     }}
+    @media (max-width: 640px) {{
+      .wrap {{
+        width: min(100%, calc(100% - 20px));
+      }}
+      .summary-grid, .match-grid, .calc-grid {{
+        grid-template-columns: 1fr;
+      }}
+      .headline h2 {{
+        font-size: 24px;
+      }}
+    }}
   </style>
 </head>
 <body>
   <main class="wrap">
     <section class="hero">
-      <h1>Detalhamento das Recomendações de Nota</h1>
-      <p>Esta página mostra, jogador por jogador, como a recomendação foi construída a partir das últimas 6 peladas.</p>
+      <h1>Detalhe das recomendacoes</h1>
+      <p>Leitura simplificada por jogador, com foco na decisão final e no contexto recente.</p>
       <p>Janela analisada: {last6_str}.</p>
-      <p>A classificação recente segue como critério principal; participações ofensivas entram como moderador em relação à nota atual.</p>
       <div class="nav">
         <a href="dashboard_pixotada_2026.html">Dashboard</a>
+        <a href="ranking_geral_jogadores.html">Ranking geral</a>
         <a href="ranking_modelos_ultimas4.html">Modelos de pontuação</a>
         <a href="efeito_jogadores.html">Efeito dos jogadores</a>
         <a href="sugestao_novas_notas.html">Sugestão de notas</a>
@@ -471,14 +536,23 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
     </section>
     <section class="grid">
       <section class="card">
-        <h2 id="player-name"></h2>
-        <div id="player-tag" class="tag manter"></div>
-        <p id="player-reason"></p>
+        <div class="headline">
+          <div>
+            <h2 id="player-name"></h2>
+            <p id="player-subtitle"></p>
+          </div>
+          <div id="player-tag" class="tag manter"></div>
+        </div>
+        <div class="explanation">
+          <h3>Resumo da recomendação</h3>
+          <p id="player-reason"></p>
+        </div>
         <div id="summary-grid" class="summary-grid"></div>
-        <div id="calc-box" class="calc-box"></div>
+        <div id="calc-box"></div>
       </section>
       <section class="card">
         <h2>Partida por partida</h2>
+        <p style="margin-top: 4px; color: var(--muted);">Cada cartão resume produção individual, resultado do time e contexto do jogo.</p>
         <div id="match-list" class="match-list"></div>
       </section>
     </section>
@@ -487,14 +561,15 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
     const payload = {json.dumps(payload, ensure_ascii=False)};
     const select = document.getElementById('player-select');
     const playerName = document.getElementById('player-name');
+    const playerSubtitle = document.getElementById('player-subtitle');
     const playerTag = document.getElementById('player-tag');
     const playerReason = document.getElementById('player-reason');
     const summaryGrid = document.getElementById('summary-grid');
     const calcBox = document.getElementById('calc-box');
     const matchList = document.getElementById('match-list');
 
-    function metric(label, value) {{
-      return `<div class="metric"><span>${{label}}</span><strong>${{value}}</strong></div>`;
+    function metric(label, value, note = '') {{
+      return `<div class="metric"><span>${{label}}</span><strong>${{value}}</strong>${{note ? `<small>${{note}}</small>` : ''}}</div>`;
     }}
 
     function formatSignal(signal) {{
@@ -514,94 +589,106 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
       return value ? 'Sim' : 'Não';
     }}
 
-    function formatNumber(value) {{
-      if (value === null || value === undefined) return '-';
-      return typeof value === 'number' ? value.toFixed(2) : value;
+    function formatNumber(value, digits = 2) {{
+      if (value === null || value === undefined || Number.isNaN(value)) return '-';
+      return typeof value === 'number' ? value.toFixed(digits) : value;
+    }}
+
+    function formatSigned(value, digits = 2) {{
+      if (value === null || value === undefined || Number.isNaN(value)) return '-';
+      const formatted = Number(value).toFixed(digits);
+      return value > 0 ? `+${{formatted}}` : formatted;
+    }}
+
+    function performanceLabel(value) {{
+      if (value === null || value === undefined || Number.isNaN(value)) return 'Sem base suficiente';
+      if (value >= 1.5) return 'Muito acima do esperado';
+      if (value >= 0.5) return 'Acima do esperado';
+      if (value <= -1.5) return 'Muito abaixo do esperado';
+      if (value <= -0.5) return 'Abaixo do esperado';
+      return 'Dentro do esperado';
+    }}
+
+    function buildRules(calc) {{
+      const flags = calc.flags;
+      return `
+        <details>
+          <summary>Critérios usados na decisão</summary>
+          <div class="details-body">
+            <div class="calc-grid">
+              <div class="calc-item"><strong>Amostra mínima</strong>${{formatBool(flags.amostra_minima_ok)}}</div>
+              <div class="calc-item"><strong>Regra acionada</strong>${{calc.decision.regra_acionada}}</div>
+              <div class="calc-item"><strong>Jogador entre os melhores</strong>${{formatBool(calc.metrics.top_recent)}}</div>
+              <div class="calc-item"><strong>Jogador entre os piores</strong>${{formatBool(calc.metrics.bottom_recent)}}</div>
+              <div class="calc-item"><strong>Ataque acima da nota atual</strong>${{formatBool(flags.ataque_ok)}}</div>
+              <div class="calc-item"><strong>Impacto coletivo forte</strong>${{formatBool(flags.coletivo_forte)}}</div>
+            </div>
+            <div class="rule-list">
+              <div class="rule ${{flags.strong_up ? 'hit' : ''}}">
+                <strong>Critério de subida principal</strong>
+                <div>${{calc.thresholds.subida_principal}}</div>
+                <div>Resultado: ${{formatBool(flags.strong_up)}}</div>
+              </div>
+              <div class="rule ${{flags.moderate_up ? 'hit' : ''}}">
+                <strong>Critério de subida secundário</strong>
+                <div>${{calc.thresholds.subida_secundaria}}</div>
+                <div>Resultado: ${{formatBool(flags.moderate_up)}}</div>
+              </div>
+              <div class="rule ${{flags.strong_down ? 'hit' : ''}}">
+                <strong>Critério de descida principal</strong>
+                <div>${{calc.thresholds.descida_principal}}</div>
+                <div>Resultado: ${{formatBool(flags.strong_down)}}</div>
+              </div>
+              <div class="rule ${{flags.moderate_down ? 'hit' : ''}}">
+                <strong>Critério de descida secundário</strong>
+                <div>${{calc.thresholds.descida_secundaria}}</div>
+                <div>Resultado: ${{formatBool(flags.moderate_down)}}</div>
+              </div>
+            </div>
+          </div>
+        </details>
+        <details>
+          <summary>Base numérica usada no cálculo</summary>
+          <div class="details-body">
+            <div class="calc-grid">
+              <div class="calc-item"><strong>Posição no modelo recente</strong>${{calc.metrics.posicao_modelo_recente ?? '-'}}</div>
+              <div class="calc-item"><strong>Impacto recente do time</strong>${{formatNumber(calc.metrics.impacto_ajustado)}}</div>
+              <div class="calc-item"><strong>Participações por jogo</strong>${{formatNumber(calc.metrics.participacao_real_pg)}}</div>
+              <div class="calc-item"><strong>Participações esperadas para a nota</strong>${{formatNumber(calc.metrics.participacao_esperada_pg_nota)}}</div>
+              <div class="calc-item"><strong>Gols do time por jogo</strong>${{formatNumber(calc.metrics.gols_time_pg)}}</div>
+              <div class="calc-item"><strong>Gols do time esperados</strong>${{formatNumber(calc.metrics.gols_time_esperados_pg_nota)}}</div>
+              <div class="calc-item"><strong>Gols sofridos por jogo</strong>${{formatNumber(calc.metrics.gols_sofridos_pg)}}</div>
+              <div class="calc-item"><strong>Gols sofridos esperados</strong>${{formatNumber(calc.metrics.gols_sofridos_esperados_pg_nota)}}</div>
+              <div class="calc-item"><strong>Jogos sem sofrer gols por jogo</strong>${{formatNumber(calc.metrics.jogos_sem_sofrer_pg)}}</div>
+              <div class="calc-item"><strong>Jogos sem sofrer gols esperados</strong>${{formatNumber(calc.metrics.jogos_sem_sofrer_esperados_pg_nota)}}</div>
+            </div>
+          </div>
+        </details>
+      `;
     }}
 
     function renderPlayer(key) {{
       const item = payload[key];
       const calc = item.memoria_calculo;
-      const metrics = calc.metrics;
-      const flags = calc.flags;
-      const decision = calc.decision;
-      playerName.textContent = `${{item.jogador_json}}${{item.jogador_json !== item.jogador_scout ? ' (' + item.jogador_scout + ')' : ''}}`;
+      playerName.textContent = item.jogador_json;
+      playerSubtitle.textContent = item.jogador_json !== item.jogador_scout ? `Nome no scout: ${{item.jogador_scout}}` : 'Nome já conciliado com a base de scouts';
       playerTag.className = `tag ${{item.sinal}}`;
       playerTag.textContent = `${{formatSignal(item.sinal)}}: ${{item.nota_atual ?? '-'}} → ${{item.nova_nota_sugerida ?? '-'}}`;
       playerReason.textContent = item.justificativa;
 
       summaryGrid.innerHTML = [
         metric('Nota atual', item.nota_atual ?? '-'),
-        metric('Nova nota sugerida', item.nova_nota_sugerida ?? '-'),
-        metric('Jogos nas últimas 6', item.jogos_ult6 ?? '-'),
+        metric('Sugestão', item.nova_nota_sugerida ?? '-', formatSignal(item.sinal)),
+        metric('Jogos recentes', item.jogos_ult6 ?? '-'),
+        metric('Desempenho recente', performanceLabel(item.impacto_ajustado), `Impacto do time: ${{formatNumber(item.impacto_ajustado)}}`),
         metric('Posição no modelo recente', item.posicao_modelo_recente ?? '-'),
         metric('Participações nas últimas 6', item.participacoes_ult6 ?? '-'),
-        metric('Impacto ajustado', item.impacto_ajustado ?? '-'),
-        metric('Impacto gols do time', item.impacto_gols_time ?? '-'),
-        metric('Impacto gols sofridos', item.impacto_gols_sofridos ?? '-'),
-        metric('Impacto clean sheets', item.impacto_jogos_sem_sofrer ?? '-'),
-        metric('Participações por jogo', item.participacao_real_pg ?? '-'),
-        metric('Esperado p/ a nota', item.participacao_esperada_pg_nota ?? '-'),
-        metric('Delta participação vs nota', item.delta_participacao_vs_nota ?? '-'),
-        metric('Gols do time por jogo', item.gols_time_pg ?? '-'),
-        metric('Esperado gols do time', item.gols_time_esperados_pg_nota ?? '-'),
-        metric('Delta gols do time', item.delta_gols_time_vs_nota ?? '-'),
-        metric('Gols sofridos por jogo', item.gols_sofridos_pg ?? '-'),
-        metric('Esperado gols sofridos', item.gols_sofridos_esperados_pg_nota ?? '-'),
-        metric('Delta gols sofridos', item.delta_gols_sofridos_vs_nota ?? '-'),
-        metric('Clean sheets por jogo', item.jogos_sem_sofrer_pg ?? '-'),
-        metric('Esperado clean sheets', item.jogos_sem_sofrer_esperados_pg_nota ?? '-'),
-        metric('Delta clean sheets', item.delta_jogos_sem_sofrer_vs_nota ?? '-'),
-        metric('Correspondência no scout', item.tem_correspondencia ? 'Sim' : 'Não'),
-        metric('Sinal', formatSignal(item.sinal)),
+        metric('Gols do time por jogo', formatNumber(item.gols_time_pg), `Esperado para a nota: ${{formatNumber(item.gols_time_esperados_pg_nota)}}`),
+        metric('Gols sofridos por jogo', formatNumber(item.gols_sofridos_pg), `Esperado para a nota: ${{formatNumber(item.gols_sofridos_esperados_pg_nota)}}`),
+        metric('Jogos sem sofrer gols por jogo', formatNumber(item.jogos_sem_sofrer_pg), `Esperado para a nota: ${{formatNumber(item.jogos_sem_sofrer_esperados_pg_nota)}}`),
       ].join('');
 
-      calcBox.innerHTML = `
-        <h3>Memória de cálculo</h3>
-        <div class="calc-grid">
-          <div class="calc-item"><strong>Amostra mínima ok</strong>${{formatBool(flags.amostra_minima_ok)}}</div>
-          <div class="calc-item"><strong>Regra acionada</strong>${{decision.regra_acionada}}</div>
-          <div class="calc-item"><strong>Top recente</strong>${{formatBool(metrics.top_recent)}}</div>
-          <div class="calc-item"><strong>Bottom recente</strong>${{formatBool(metrics.bottom_recent)}}</div>
-          <div class="calc-item"><strong>Ataque ok</strong>${{formatBool(flags.ataque_ok)}}</div>
-          <div class="calc-item"><strong>Ataque forte</strong>${{formatBool(flags.ataque_forte)}}</div>
-          <div class="calc-item"><strong>Ataque fraco</strong>${{formatBool(flags.ataque_fraco)}}</div>
-          <div class="calc-item"><strong>Ataque muito fraco</strong>${{formatBool(flags.ataque_muito_fraco)}}</div>
-          <div class="calc-item"><strong>Coletivo ok</strong>${{formatBool(flags.coletivo_ok)}}</div>
-          <div class="calc-item"><strong>Coletivo forte</strong>${{formatBool(flags.coletivo_forte)}}</div>
-          <div class="calc-item"><strong>Coletivo fraco</strong>${{formatBool(flags.coletivo_fraco)}}</div>
-        </div>
-        <div class="rule-list">
-          <div class="rule ${{flags.strong_up ? 'hit' : ''}}">
-            <strong>Subida principal</strong>
-            <div>${{calc.thresholds.subida_principal}}</div>
-            <div>Resultado: ${{formatBool(flags.strong_up)}}</div>
-          </div>
-          <div class="rule ${{flags.moderate_up ? 'hit' : ''}}">
-            <strong>Subida secundária</strong>
-            <div>${{calc.thresholds.subida_secundaria}}</div>
-            <div>Resultado: ${{formatBool(flags.moderate_up)}}</div>
-          </div>
-          <div class="rule ${{flags.strong_down ? 'hit' : ''}}">
-            <strong>Descida principal</strong>
-            <div>${{calc.thresholds.descida_principal}}</div>
-            <div>Resultado: ${{formatBool(flags.strong_down)}}</div>
-          </div>
-          <div class="rule ${{flags.moderate_down ? 'hit' : ''}}">
-            <strong>Descida secundária</strong>
-            <div>${{calc.thresholds.descida_secundaria}}</div>
-            <div>Resultado: ${{formatBool(flags.moderate_down)}}</div>
-          </div>
-          <div class="rule hit">
-            <strong>Valores usados na decisão</strong>
-            <div>Posição recente: ${{metrics.posicao_modelo_recente ?? '-'}} | Impacto ajustado: ${{formatNumber(metrics.impacto_ajustado)}} | Jogos: ${{metrics.jogos_ult6 ?? '-'}}</div>
-            <div>Participação real/jogo: ${{formatNumber(metrics.participacao_real_pg)}} | Esperado p/ nota: ${{formatNumber(metrics.participacao_esperada_pg_nota)}} | Delta: ${{formatNumber(metrics.delta_participacao_vs_nota)}}</div>
-            <div>Gols do time/jogo: ${{formatNumber(metrics.gols_time_pg)}} | Esperado: ${{formatNumber(metrics.gols_time_esperados_pg_nota)}} | Delta: ${{formatNumber(metrics.delta_gols_time_vs_nota)}}</div>
-            <div>Gols sofridos/jogo: ${{formatNumber(metrics.gols_sofridos_pg)}} | Esperado: ${{formatNumber(metrics.gols_sofridos_esperados_pg_nota)}} | Delta: ${{formatNumber(metrics.delta_gols_sofridos_vs_nota)}}</div>
-            <div>Clean sheets/jogo: ${{formatNumber(metrics.jogos_sem_sofrer_pg)}} | Esperado: ${{formatNumber(metrics.jogos_sem_sofrer_esperados_pg_nota)}} | Delta: ${{formatNumber(metrics.delta_jogos_sem_sofrer_vs_nota)}}</div>
-          </div>
-        </div>
-      `;
+      calcBox.innerHTML = buildRules(calc);
 
       if (!item.partidas.length) {{
         matchList.innerHTML = '<p>Sem partidas detalhadas nesse recorte.</p>';
@@ -612,21 +699,18 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
         <article class="match">
           <div class="match-head">
             <div class="match-title">${{match.Data_fmt}} | Time ${{match.Time}} | ${{match.Classificacao}}</div>
-            <div class="delta ${{deltaClass(match.Delta)}}">Delta: ${{match.Delta > 0 ? '+' : ''}}${{match.Delta.toFixed(2)}}</div>
+            <div class="delta ${{deltaClass(match.Delta)}}">Resultado do time vs esperado: ${{formatSigned(match.Delta)}}</div>
           </div>
           <div class="match-grid">
-            <div class="mini"><span>Gols</span><strong>${{match.Gols}}</strong></div>
-            <div class="mini"><span>Assistências</span><strong>${{match.Assistencias}}</strong></div>
-            <div class="mini"><span>Participações</span><strong>${{match.Participacoes}}</strong></div>
-            <div class="mini"><span>Pontos reais / esperados</span><strong>${{match.Pontos_reais}} / ${{match.Pontos_esperados}}</strong></div>
-            <div class="mini"><span>Gols do time / esperado</span><strong>${{formatNumber(match.Gols_time)}} / ${{formatNumber(match.Expected_gols_time)}}</strong></div>
-            <div class="mini"><span>Gols sofridos / esperado</span><strong>${{formatNumber(match.Gols_sofridos)}} / ${{formatNumber(match.Expected_gols_sofridos)}}</strong></div>
-            <div class="mini"><span>Clean sheets / esperado</span><strong>${{formatNumber(match.Jogos_sem_sofrer)}} / ${{formatNumber(match.Expected_jogos_sem_sofrer)}}</strong></div>
-            <div class="mini"><span>Delta gols do time</span><strong>${{formatNumber(match.Delta_gols_time)}}</strong></div>
-            <div class="mini"><span>Delta gols sofridos</span><strong>${{formatNumber(match.Delta_gols_sofridos)}}</strong></div>
-            <div class="mini"><span>Delta clean sheets</span><strong>${{formatNumber(match.Delta_jogos_sem_sofrer)}}</strong></div>
-            <div class="mini"><span>Força do time</span><strong>${{match.Forca_time.toFixed(2)}}</strong></div>
-            <div class="mini"><span>Média de força observada</span><strong>${{match.Media_nota_time.toFixed(2)}}</strong></div>
+            <div class="mini"><span>Produção individual</span><strong>${{match.Gols}} G | ${{match.Assistencias}} A | ${{match.Participacoes}} P</strong></div>
+            <div class="mini"><span>Pontos do time</span><strong>${{match.Pontos_reais}} reais | ${{match.Pontos_esperados}} esperados</strong></div>
+            <div class="mini"><span>Força média do time</span><strong>${{formatNumber(match.Media_nota_time)}}</strong></div>
+            <div class="mini"><span>Gols do time</span><strong>${{formatNumber(match.Gols_time, 1)}}</strong></div>
+            <div class="mini"><span>Gols sofridos</span><strong>${{formatNumber(match.Gols_sofridos, 1)}}</strong></div>
+            <div class="mini"><span>Jogo sem sofrer gols</span><strong>${{match.Jogos_sem_sofrer ? 'Sim' : 'Não'}}</strong></div>
+            <div class="mini"><span>Comparação com o esperado</span><strong>Ataque ${{formatSigned(match.Delta_gols_time)}} | Defesa ${{formatSigned(match.Delta_gols_sofridos)}} | SG ${{formatSigned(match.Delta_jogos_sem_sofrer)}}</strong></div>
+            <div class="mini"><span>Gols do time esperados</span><strong>${{formatNumber(match.Expected_gols_time)}}</strong></div>
+            <div class="mini"><span>Gols sofridos esperados</span><strong>${{formatNumber(match.Expected_gols_sofridos)}}</strong></div>
           </div>
           <div class="people"><strong>Companheiros</strong>${{match.Companheiros.join(', ') || '—'}}</div>
           <div class="people" style="margin-top:8px;"><strong>Adversários</strong>${{match.Adversarios.join(', ') || '—'}}</div>

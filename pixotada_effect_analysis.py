@@ -266,7 +266,7 @@ def build_html(impact_df: pd.DataFrame, pair_df: pd.DataFrame) -> str:
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <title>Analise de Efeito por Jogador</title>
+  <title>Efeito dos jogadores</title>
   <style>
     body {{
       margin: 0;
@@ -275,7 +275,7 @@ def build_html(impact_df: pd.DataFrame, pair_df: pd.DataFrame) -> str:
       color: #1f2933;
     }}
     .wrap {{
-      width: min(1280px, calc(100% - 32px));
+      width: min(1400px, calc(100% - 32px));
       margin: 0 auto;
       padding: 24px 0 40px;
     }}
@@ -313,12 +313,13 @@ def build_html(impact_df: pd.DataFrame, pair_df: pd.DataFrame) -> str:
 <body>
   <main class="wrap">
     <section class="hero">
-      <h1>Analise de Efeito dos Jogadores</h1>
+      <h1>Efeito dos jogadores</h1>
       <p>Impacto bruto = classificacao media das equipes com o jogador.</p>
       <p>Impacto ajustado = resultado real menos resultado esperado a partir da forca recente do elenco do time em cada data.</p>
       <p>Esta versao destaca apenas jogadores com pelo menos 4 jogos.</p>
       <div class="nav">
         <a href="dashboard_pixotada_2026.html">Dashboard</a>
+        <a href="ranking_geral_jogadores.html">Ranking geral</a>
         <a href="ranking_modelos_ultimas4.html">Modelos de pontuação</a>
         <a href="efeito_jogadores.html">Efeito dos jogadores</a>
         <a href="sugestao_novas_notas.html">Sugestão de notas</a>

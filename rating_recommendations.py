@@ -456,34 +456,82 @@ def build_html(df: pd.DataFrame) -> str:
         table["sinal"].fillna("manter").ne("manter")
         | table["nova_nota_sugerida"].fillna(table["nota_atual"]).ne(table["nota_atual"])
     )
-    numeric_cols = [
-        "Impacto_ajustado",
-        "Impacto_gols_time",
-        "Impacto_gols_sofridos",
-        "Impacto_jogos_sem_sofrer",
-        "participacao_real_pg",
-        "participacao_esperada_pg_nota",
-        "delta_participacao_vs_nota",
-        "gols_time_pg",
-        "gols_time_esperados_pg_nota",
-        "delta_gols_time_vs_nota",
-        "gols_sofridos_pg",
-        "gols_sofridos_esperados_pg_nota",
-        "delta_gols_sofridos_vs_nota",
-        "jogos_sem_sofrer_pg",
-        "jogos_sem_sofrer_esperados_pg_nota",
-        "delta_jogos_sem_sofrer_vs_nota",
-    ]
-    for col in numeric_cols:
-        table[col] = table[col].map(lambda x: "" if pd.isna(x) else f"{x:.2f}")
-    rows_html = []
-    columns = table.columns.tolist()
-    display_columns = [col for col in columns if col != "tem_mudanca"]
+    table["tem_amostra"] = table["jogos_ult6"].fillna(0).ge(3)
 
-    for _, row in table.iterrows():
+    def leitura_label(value: float | None) -> str:
+        if pd.isna(value):
+            return "Sem partidas suficientes"
+        if value >= 1:
+            return "Muito acima do esperado"
+        if value >= 0.35:
+            return "Acima do esperado"
+        if value <= -1:
+            return "Muito abaixo do esperado"
+        if value <= -0.35:
+            return "Abaixo do esperado"
+        return "Dentro do esperado"
+
+    def resumo_texto(row: pd.Series) -> str:
+        if not bool(row["tem_amostra"]):
+            return "Ainda nao ha partidas suficientes no recorte recente para recomendar mudanca."
+        gols_time = row["gols_time_pg"]
+        gols_sofridos = row["gols_sofridos_pg"]
+        if row["sinal"] == "subir":
+            return (
+                f"Tem jogado acima do esperado. Seus times fizeram {gols_time:.2f} gols por jogo "
+                f"e sofreram {gols_sofridos:.2f} com ele em campo."
+            )
+        if row["sinal"] == "descer":
+            return (
+                f"O recorte recente ficou abaixo do esperado. Seus times fizeram {gols_time:.2f} gols por jogo "
+                f"e sofreram {gols_sofridos:.2f} com ele em campo."
+            )
+        return (
+            f"Nao ha evidencia forte para mudar a nota. Seus times fizeram {gols_time:.2f} gols por jogo "
+            f"e sofreram {gols_sofridos:.2f} no recorte recente."
+        )
+
+    table["Jogador"] = table["jogador_scout"].fillna(table["jogador_json"])
+    table["Nota atual"] = table["nota_atual"].map(lambda value: "" if pd.isna(value) else int(value))
+    table["Sugestao"] = table["nova_nota_sugerida"].map(lambda value: "" if pd.isna(value) else int(value))
+    table["Mudanca"] = table["sinal"].map({"subir": "Subir", "descer": "Descer", "manter": "Manter"}).fillna("Manter")
+    table["Jogos recentes"] = table["jogos_ult6"].map(lambda value: "" if pd.isna(value) else int(value))
+    table["Desempenho recente"] = table["Impacto_ajustado"].map(leitura_label)
+    table["Resumo"] = table.apply(resumo_texto, axis=1)
+    table["Detalhe"] = '<a href="detalhe_recomendacoes_notas.html">Abrir</a>'
+
+    display_table = table.loc[table["tem_amostra"]].copy()
+    display_table = display_table.sort_values(
+        ["tem_mudanca", "Mudanca", "Jogos recentes", "Jogador"],
+        ascending=[False, True, False, True],
+    )
+
+    change_counts = display_table["Mudanca"].value_counts().to_dict()
+    without_sample = int((~table["tem_amostra"]).sum())
+    rows_html = []
+    display_columns = [
+        "Jogador",
+        "Nota atual",
+        "Sugestao",
+        "Mudanca",
+        "Jogos recentes",
+        "Desempenho recente",
+        "Resumo",
+        "Detalhe",
+    ]
+
+    for _, row in display_table.iterrows():
         row_class = "has-change" if bool(row["tem_mudanca"]) else "no-change"
-        cells = "".join(f"<td>{row[col]}</td>" for col in display_columns)
-        rows_html.append(f'<tr class="{row_class}">{cells}</tr>')
+        change_class = str(row["Mudanca"]).lower()
+        cells = []
+        for column in display_columns:
+            value = row[column]
+            if column == "Mudanca":
+                value = f'<span class="badge {change_class}">{value}</span>'
+            elif column == "Desempenho recente":
+                value = f'<span class="badge neutral">{value}</span>'
+            cells.append(f"<td>{value}</td>")
+        rows_html.append(f'<tr class="{row_class}">{"".join(cells)}</tr>')
 
     header_html = "".join(f"<th>{col}</th>" for col in display_columns)
     body_html = "\n".join(rows_html)
@@ -492,7 +540,7 @@ def build_html(df: pd.DataFrame) -> str:
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <title>Sugestao de Notas dos Jogadores</title>
+  <title>Sugestao de notas</title>
   <style>
     body {{
       margin: 0;
@@ -517,6 +565,13 @@ def build_html(df: pd.DataFrame) -> str:
       border-collapse: collapse;
       font-size: 14px;
     }}
+    .table-wrap {{
+      max-height: 720px;
+      overflow: auto;
+      border: 1px solid #eadfc9;
+      border-radius: 16px;
+      background: #fff;
+    }}
     .table th, .table td {{
       border-bottom: 1px solid #eadfc9;
       padding: 10px 8px;
@@ -525,6 +580,9 @@ def build_html(df: pd.DataFrame) -> str:
     }}
     .table th {{
       background: #f6efe2;
+      position: sticky;
+      top: 0;
+      z-index: 2;
     }}
     .nav {{
       display: flex;
@@ -564,6 +622,43 @@ def build_html(df: pd.DataFrame) -> str:
       color: #5b6673;
       font-size: 14px;
     }}
+    .summary-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 20px;
+    }}
+    .summary-card {{
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid #eadfc9;
+      background: #fffaf1;
+    }}
+    .summary-card strong {{
+      display: block;
+      font-size: 28px;
+      margin-top: 4px;
+    }}
+    .badge {{
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 13px;
+      white-space: nowrap;
+    }}
+    .badge.subir {{
+      background: #e8f6f3;
+      color: #117864;
+    }}
+    .badge.descer {{
+      background: #fdecea;
+      color: #922b21;
+    }}
+    .badge.manter, .badge.neutral {{
+      background: #f6efe2;
+      color: #6b5b45;
+    }}
     body.only-changes .table tbody tr.no-change {{
       display: none;
     }}
@@ -572,37 +667,59 @@ def build_html(df: pd.DataFrame) -> str:
 <body>
   <main class="wrap">
     <section class="hero">
-      <h1>Sugestao de Novas Notas</h1>
-      <p>Expectativa refinada usando scouts e classificacao recente para estimar a forca observada dos times nas ultimas 6 peladas.</p>
-      <p>So entram como evidência de ajuste os jogadores com pelo menos 3 jogos nesse recorte.</p>
+      <h1>Sugestao de notas</h1>
+      <p>Esta pagina resume a decisao principal sobre nota: subir, manter ou descer.</p>
+      <p>So aparecem na tabela principal os jogadores com pelo menos 3 jogos nas ultimas 6 peladas.</p>
       <div class="nav">
         <a href="dashboard_pixotada_2026.html">Dashboard</a>
+        <a href="ranking_geral_jogadores.html">Ranking geral</a>
         <a href="ranking_modelos_ultimas4.html">Modelos de pontuação</a>
         <a href="efeito_jogadores.html">Efeito dos jogadores</a>
         <a href="sugestao_novas_notas.html">Sugestão de notas</a>
         <a href="detalhe_recomendacoes_notas.html">Detalhe das recomendações</a>
       </div>
+      <div class="summary-grid">
+        <div class="summary-card">
+          <span>Subir nota</span>
+          <strong>{change_counts.get("Subir", 0)}</strong>
+        </div>
+        <div class="summary-card">
+          <span>Descer nota</span>
+          <strong>{change_counts.get("Descer", 0)}</strong>
+        </div>
+        <div class="summary-card">
+          <span>Manter nota</span>
+          <strong>{change_counts.get("Manter", 0)}</strong>
+        </div>
+        <div class="summary-card">
+          <span>Sem partidas suficientes</span>
+          <strong>{without_sample}</strong>
+        </div>
+      </div>
     </section>
     <section class="card" style="margin-top:20px;">
       <div class="controls">
         <label class="toggle" for="onlyChanges">
-          <input id="onlyChanges" type="checkbox">
-          Mostrar apenas jogadores com sugestão de mudança
+          <input id="onlyChanges" type="checkbox" checked>
+          Mostrar apenas jogadores com mudanca de nota
         </label>
-        <span class="helper">O filtro esconde recomendações de manter nota.</span>
+        <span class="helper">Use a pagina de detalhe para ver a memoria completa de calculo.</span>
       </div>
-      <table class="table">
-        <thead>
-          <tr>{header_html}</tr>
-        </thead>
-        <tbody>
-          {body_html}
-        </tbody>
-      </table>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>{header_html}</tr>
+          </thead>
+          <tbody>
+            {body_html}
+          </tbody>
+        </table>
+      </div>
     </section>
   </main>
   <script>
     const onlyChanges = document.getElementById("onlyChanges");
+    document.body.classList.toggle("only-changes", onlyChanges.checked);
     onlyChanges.addEventListener("change", () => {{
       document.body.classList.toggle("only-changes", onlyChanges.checked);
     }});
