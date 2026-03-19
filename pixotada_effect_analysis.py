@@ -23,6 +23,86 @@ CLASS_RANK = {
     "Lanterna": 4,
 }
 
+TABLE_UI_CSS = """
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .table-wrap {
+      max-height: 520px;
+      overflow: auto;
+      border: 1px solid #eadfc9;
+      border-radius: 16px;
+      background: #fff;
+    }
+    .table th, .table td {
+      border-bottom: 1px solid #eadfc9;
+      padding: 10px 8px;
+      text-align: left;
+    }
+    .table th {
+      background: #f6efe2;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .sortable-table th {
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .sortable-table th::after {
+      content: "  ↕";
+      color: #8a7d66;
+      font-size: 12px;
+    }
+"""
+
+TABLE_UI_SCRIPT = """
+  <script>
+    function parseSortableValue(rawValue) {
+      const value = String(rawValue ?? "").trim();
+      const normalized = value.replace(/\\./g, "").replace(",", ".");
+      const numeric = Number(normalized);
+      if (!Number.isNaN(numeric) && normalized !== "") {
+        return numeric;
+      }
+      return value.toLocaleLowerCase("pt-BR");
+    }
+
+    function sortTableByColumn(table, columnIndex, direction) {
+      const tbody = table.tBodies[0];
+      if (!tbody) return;
+      const rows = Array.from(tbody.rows);
+      rows.sort((rowA, rowB) => {
+        const valueA = parseSortableValue(rowA.cells[columnIndex]?.innerText);
+        const valueB = parseSortableValue(rowB.cells[columnIndex]?.innerText);
+        if (typeof valueA === "number" && typeof valueB === "number") {
+          return direction === "asc" ? valueA - valueB : valueB - valueA;
+        }
+        return direction === "asc"
+          ? String(valueA).localeCompare(String(valueB), "pt-BR")
+          : String(valueB).localeCompare(String(valueA), "pt-BR");
+      });
+      rows.forEach(row => tbody.appendChild(row));
+    }
+
+    document.querySelectorAll(".sortable-table").forEach(table => {
+      const headers = table.tHead ? Array.from(table.tHead.rows[0].cells) : [];
+      headers.forEach((header, columnIndex) => {
+        header.dataset.sortDirection = "desc";
+        header.addEventListener("click", () => {
+          const currentDirection = header.dataset.sortDirection === "asc" ? "desc" : "asc";
+          headers.forEach(cell => cell.dataset.sortDirection = "");
+          header.dataset.sortDirection = currentDirection;
+          sortTableByColumn(table, columnIndex, currentDirection);
+        });
+      });
+    });
+  </script>
+"""
+
 def build_team_context(df: pd.DataFrame) -> pd.DataFrame:
     data = build_pre_match_expected_results(df, df).rename(columns={"forca_observada": "forca_recente"})
     data["class_points"] = data["classificacao_norm"].map(CLASS_POINTS)
@@ -176,6 +256,10 @@ def build_html(impact_df: pd.DataFrame, pair_df: pd.DataFrame) -> str:
         for column in table.columns:
             if table[column].dtype.kind in {"f"}:
                 table[column] = table[column].map(lambda x: f"{x:.2f}")
+    top_positive_html = top_positive.to_html(index=False, classes="table sortable-table", border=0)
+    top_negative_html = top_negative.to_html(index=False, classes="table sortable-table", border=0)
+    pair_positive_html = pair_positive.to_html(index=False, classes="table sortable-table", border=0)
+    pair_negative_html = pair_negative.to_html(index=False, classes="table sortable-table", border=0)
 
     return f"""
 <!DOCTYPE html>
@@ -208,19 +292,7 @@ def build_html(impact_df: pd.DataFrame, pair_df: pd.DataFrame) -> str:
       gap: 20px;
       margin-top: 20px;
     }}
-    .table {{
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-    }}
-    .table th, .table td {{
-      border-bottom: 1px solid #eadfc9;
-      padding: 10px 8px;
-      text-align: left;
-    }}
-    .table th {{
-      background: #f6efe2;
-    }}
+{TABLE_UI_CSS}
     .nav {{
       display: flex;
       flex-wrap: wrap;
@@ -256,22 +328,23 @@ def build_html(impact_df: pd.DataFrame, pair_df: pd.DataFrame) -> str:
     <section class="grid">
       <section class="card">
         <h2>Top 15 impacto ajustado positivo</h2>
-        {top_positive.to_html(index=False, classes="table", border=0)}
+        <div class="table-wrap">{top_positive_html}</div>
       </section>
       <section class="card">
         <h2>Top 15 impacto ajustado negativo</h2>
-        {top_negative.to_html(index=False, classes="table", border=0)}
+        <div class="table-wrap">{top_negative_html}</div>
       </section>
       <section class="card">
         <h2>Duplas com sinergia positiva</h2>
-        {pair_positive.to_html(index=False, classes="table", border=0)}
+        <div class="table-wrap">{pair_positive_html}</div>
       </section>
       <section class="card">
         <h2>Duplas com sinergia negativa</h2>
-        {pair_negative.to_html(index=False, classes="table", border=0)}
+        <div class="table-wrap">{pair_negative_html}</div>
       </section>
     </section>
   </main>
+{TABLE_UI_SCRIPT}
 </body>
 </html>
 """

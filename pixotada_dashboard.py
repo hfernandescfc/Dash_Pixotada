@@ -1849,7 +1849,7 @@ def build_general_ranking_spotlight() -> str:
         for column in table_df.columns:
             if table_df[column].dtype.kind in {"f"}:
                 table_df[column] = table_df[column].map(lambda value: f"{value:.2f}")
-        return table_df.to_html(index=False, classes="table", border=0)
+        return table_df.to_html(index=False, classes="table sortable-table", border=0)
 
     historic_table = format_table(historic)
     current_table = format_table(current)
@@ -1864,8 +1864,8 @@ def build_general_ranking_spotlight() -> str:
           <option value="mes">Mes corrente</option>
         </select>
       </div>
-      <div id="ranking-geral-historico">{historic_table}</div>
-      <div id="ranking-geral-mes" style="display:none;">{current_table}</div>
+      <div id="ranking-geral-historico" class="table-wrap">{historic_table}</div>
+      <div id="ranking-geral-mes" class="table-wrap" style="display:none;">{current_table}</div>
       <p><a href="ranking_geral_jogadores.html">Abrir pagina completa do ranking geral</a></p>
     </section>
     <script>
@@ -1917,7 +1917,7 @@ def build_dashboard(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> str
             "Assistencias": "Assist\u00eancias",
             "Participacoes": "Participa\u00e7\u00f5es",
         }
-    ).to_html(index=False, classes="table", border=0)
+    ).to_html(index=False, classes="table sortable-table", border=0)
 
     plotly_js = get_plotlyjs()
     return f"""
@@ -1980,6 +1980,13 @@ def build_dashboard(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> str
       border-collapse: collapse;
       font-size: 14px;
     }}
+    .table-wrap {{
+      max-height: 520px;
+      overflow: auto;
+      border: 1px solid #eadfc9;
+      border-radius: 16px;
+      background: #fff;
+    }}
     .table th, .table td {{
       border-bottom: 1px solid #eadfc9;
       padding: 10px 8px;
@@ -1987,6 +1994,19 @@ def build_dashboard(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> str
     }}
     .table th {{
       background: #f6efe2;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }}
+    .sortable-table th {{
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }}
+    .sortable-table th::after {{
+      content: "  ↕";
+      color: #8a7d66;
+      font-size: 12px;
     }}
     .nav {{
       display: flex;
@@ -2088,13 +2108,56 @@ def build_dashboard(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> str
     {general_ranking_spotlight}
     <section class="card">
       <h2>Top 10 geral em participa\u00e7\u00f5es</h2>
-      {top10_table}
+      <div class="table-wrap">
+        {top10_table}
+      </div>
     </section>
     <section class="grid">
       {''.join(cards)}
       {last4_cards}
     </section>
   </main>
+  <script>
+    function parseSortableValue(rawValue) {{
+      const value = String(rawValue ?? "").trim();
+      const normalized = value.replace(/\\./g, "").replace(",", ".");
+      const numeric = Number(normalized);
+      if (!Number.isNaN(numeric) && normalized !== "") {{
+        return numeric;
+      }}
+      return value.toLocaleLowerCase("pt-BR");
+    }}
+
+    function sortTableByColumn(table, columnIndex, direction) {{
+      const tbody = table.tBodies[0];
+      if (!tbody) return;
+      const rows = Array.from(tbody.rows);
+      rows.sort((rowA, rowB) => {{
+        const valueA = parseSortableValue(rowA.cells[columnIndex]?.innerText);
+        const valueB = parseSortableValue(rowB.cells[columnIndex]?.innerText);
+        if (typeof valueA === "number" && typeof valueB === "number") {{
+          return direction === "asc" ? valueA - valueB : valueB - valueA;
+        }}
+        return direction === "asc"
+          ? String(valueA).localeCompare(String(valueB), "pt-BR")
+          : String(valueB).localeCompare(String(valueA), "pt-BR");
+      }});
+      rows.forEach(row => tbody.appendChild(row));
+    }}
+
+    document.querySelectorAll(".sortable-table").forEach(table => {{
+      const headers = table.tHead ? Array.from(table.tHead.rows[0].cells) : [];
+      headers.forEach((header, columnIndex) => {{
+        header.dataset.sortDirection = "desc";
+        header.addEventListener("click", () => {{
+          const currentDirection = header.dataset.sortDirection === "asc" ? "desc" : "asc";
+          headers.forEach(cell => cell.dataset.sortDirection = "");
+          header.dataset.sortDirection = currentDirection;
+          sortTableByColumn(table, columnIndex, currentDirection);
+        }});
+      }});
+    }});
+  </script>
 </body>
 </html>
 """

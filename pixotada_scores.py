@@ -69,6 +69,86 @@ CLASS_RANK = {
     "Lanterna": 4,
 }
 
+TABLE_UI_CSS = """
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .table-wrap {
+      max-height: 520px;
+      overflow: auto;
+      border: 1px solid #eadfc9;
+      border-radius: 16px;
+      background: #fff;
+    }
+    .table th, .table td {
+      border-bottom: 1px solid #eadfc9;
+      padding: 10px 8px;
+      text-align: left;
+    }
+    .table th {
+      background: #f6efe2;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .sortable-table th {
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .sortable-table th::after {
+      content: "  ↕";
+      color: #8a7d66;
+      font-size: 12px;
+    }
+"""
+
+TABLE_UI_SCRIPT = """
+  <script>
+    function parseSortableValue(rawValue) {
+      const value = String(rawValue ?? "").trim();
+      const normalized = value.replace(/\\./g, "").replace(",", ".");
+      const numeric = Number(normalized);
+      if (!Number.isNaN(numeric) && normalized !== "") {
+        return numeric;
+      }
+      return value.toLocaleLowerCase("pt-BR");
+    }
+
+    function sortTableByColumn(table, columnIndex, direction) {
+      const tbody = table.tBodies[0];
+      if (!tbody) return;
+      const rows = Array.from(tbody.rows);
+      rows.sort((rowA, rowB) => {
+        const valueA = parseSortableValue(rowA.cells[columnIndex]?.innerText);
+        const valueB = parseSortableValue(rowB.cells[columnIndex]?.innerText);
+        if (typeof valueA === "number" && typeof valueB === "number") {
+          return direction === "asc" ? valueA - valueB : valueB - valueA;
+        }
+        return direction === "asc"
+          ? String(valueA).localeCompare(String(valueB), "pt-BR")
+          : String(valueB).localeCompare(String(valueA), "pt-BR");
+      });
+      rows.forEach(row => tbody.appendChild(row));
+    }
+
+    document.querySelectorAll(".sortable-table").forEach(table => {
+      const headers = table.tHead ? Array.from(table.tHead.rows[0].cells) : [];
+      headers.forEach((header, columnIndex) => {
+        header.dataset.sortDirection = "desc";
+        header.addEventListener("click", () => {
+          const currentDirection = header.dataset.sortDirection === "asc" ? "desc" : "asc";
+          headers.forEach(cell => cell.dataset.sortDirection = "");
+          header.dataset.sortDirection = currentDirection;
+          sortTableByColumn(table, columnIndex, currentDirection);
+        });
+      });
+    });
+  </script>
+"""
+
 
 def last4_games(df: pd.DataFrame) -> pd.DataFrame:
     recent = (
@@ -219,6 +299,8 @@ def build_general_ranking_html(historic: pd.DataFrame, monthly: pd.DataFrame) ->
         for column in table.columns:
             if table[column].dtype.kind in {"f"}:
                 table[column] = table[column].map(lambda value: f"{value:.2f}")
+    historic_html = historic_top.to_html(index=False, classes="table sortable-table", border=0)
+    monthly_html = monthly_top.to_html(index=False, classes="table sortable-table", border=0)
 
     return f"""
 <!DOCTYPE html>
@@ -251,19 +333,7 @@ def build_general_ranking_html(historic: pd.DataFrame, monthly: pd.DataFrame) ->
       gap: 20px;
       margin-top: 20px;
     }}
-    .table {{
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-    }}
-    .table th, .table td {{
-      border-bottom: 1px solid #eadfc9;
-      padding: 10px 8px;
-      text-align: left;
-    }}
-    .table th {{
-      background: #f6efe2;
-    }}
+{TABLE_UI_CSS}
     .nav {{
       display: flex;
       flex-wrap: wrap;
@@ -299,15 +369,16 @@ def build_general_ranking_html(historic: pd.DataFrame, monthly: pd.DataFrame) ->
       <section class="card">
         <h2>Historico geral</h2>
         <p>Filtro minimo: 4 jogos.</p>
-        {historic_top.to_html(index=False, classes="table", border=0)}
+        <div class="table-wrap">{historic_html}</div>
       </section>
       <section class="card">
         <h2>Mes corrente</h2>
         <p>Recorte: {CURRENT_MONTH}. Filtro minimo: 2 jogos.</p>
-        {monthly_top.to_html(index=False, classes="table", border=0)}
+        <div class="table-wrap">{monthly_html}</div>
       </section>
     </section>
   </main>
+{TABLE_UI_SCRIPT}
 </body>
 </html>
 """
@@ -400,12 +471,13 @@ def build_html(rankings: dict[str, pd.DataFrame], comparison: pd.DataFrame) -> s
         top10 = ranking.head(10).copy()
         top10["Nota_final"] = top10["Nota_final"].map(lambda x: f"{x:.2f}")
         top10["Media_classificacao"] = top10["Media_classificacao"].map(lambda x: f"{x:.2f}")
+        top10_html = top10.to_html(index=False, classes="table sortable-table", border=0)
         sections.append(
             f"""
             <section class="card">
               <h2>Top 10: {model_name.title()}</h2>
               <p>{MODELS[model_name]["descricao"]}</p>
-              {top10.to_html(index=False, classes="table", border=0)}
+              <div class="table-wrap">{top10_html}</div>
             </section>
             """
         )
@@ -413,6 +485,7 @@ def build_html(rankings: dict[str, pd.DataFrame], comparison: pd.DataFrame) -> s
     compare_top = comparison.head(15).copy()
     for column in [col for col in compare_top.columns if col.startswith("Nota_") or col == "Media_notas"]:
         compare_top[column] = compare_top[column].map(lambda x: f"{x:.2f}")
+    compare_html = compare_top.to_html(index=False, classes="table sortable-table", border=0)
 
     return f"""
 <!DOCTYPE html>
@@ -445,19 +518,7 @@ def build_html(rankings: dict[str, pd.DataFrame], comparison: pd.DataFrame) -> s
       gap: 20px;
       margin-top: 20px;
     }}
-    .table {{
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-    }}
-    .table th, .table td {{
-      border-bottom: 1px solid #eadfc9;
-      padding: 10px 8px;
-      text-align: left;
-    }}
-    .table th {{
-      background: #f6efe2;
-    }}
+{TABLE_UI_CSS}
     .nav {{
       display: flex;
       flex-wrap: wrap;
@@ -491,12 +552,13 @@ def build_html(rankings: dict[str, pd.DataFrame], comparison: pd.DataFrame) -> s
     </section>
     <section class="card" style="margin-top:20px;">
       <h2>Comparativo geral</h2>
-      {compare_top.to_html(index=False, classes="table", border=0)}
+      <div class="table-wrap">{compare_html}</div>
     </section>
     <section class="grid">
       {''.join(sections)}
     </section>
   </main>
+{TABLE_UI_SCRIPT}
 </body>
 </html>
 """
