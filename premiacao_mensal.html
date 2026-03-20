@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Premiação Mensal | Pixotada 2026</title>
+  <style>
+    :root {
+      --bg: #f3efe6;
+      --panel: #fffdfa;
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --line: #e5dccb;
+      --gold: #d97706;
+      --teal: #0f766e;
+      --blue: #2563eb;
+      --wine: #be123c;
+      --olive: #4d7c0f;
+      --slate: #334155;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, #fff6dc 0%, rgba(255, 246, 220, 0.1) 28%, transparent 50%),
+        linear-gradient(180deg, #ede5d5 0%, var(--bg) 34%, #faf7f1 100%);
+    }
+    .wrap {
+      width: min(1380px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 48px;
+    }
+    .hero, .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: 0 14px 32px rgba(71, 55, 26, 0.08);
+    }
+    .hero {
+      padding: 28px;
+      background:
+        linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(15, 118, 110, 0.08)),
+        var(--panel);
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(217, 119, 6, 0.12);
+      color: #92400e;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 16px 0 8px;
+      font-size: clamp(30px, 4vw, 48px);
+      line-height: 1.05;
+    }
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .nav, .hero-top, .hero-actions, .hero-summary, .leader-grid, .tables-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .hero-top, .hero-actions {
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .nav {
+      margin-top: 22px;
+    }
+    .nav a {
+      text-decoration: none;
+      color: var(--ink);
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+    }
+    .hero-actions label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    select {
+      min-width: 220px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      font-size: 15px;
+    }
+    .hero-summary {
+      margin-top: 20px;
+    }
+    .summary-pill {
+      padding: 12px 14px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.78);
+      min-width: 180px;
+    }
+    .summary-pill strong {
+      display: block;
+      font-size: 18px;
+      margin-top: 4px;
+      color: var(--ink);
+    }
+    .section-title {
+      margin: 26px 0 12px;
+      font-size: 24px;
+    }
+    .leader-grid, .tables-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      padding: 18px;
+    }
+    .award-name {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .award-stat {
+      margin: 14px 0 4px;
+      font-size: 42px;
+      line-height: 1;
+      font-weight: 800;
+    }
+    .award-leader {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .award-meta {
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .award-gold .award-name, .award-gold .award-stat { color: var(--wine); }
+    .award-teal .award-name, .award-teal .award-stat { color: var(--blue); }
+    .award-blue .award-name, .award-blue .award-stat { color: var(--teal); }
+    .award-olive .award-name, .award-olive .award-stat { color: var(--olive); }
+    .award-slate .award-name, .award-slate .award-stat { color: var(--slate); }
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 12px 10px;
+      border-bottom: 1px solid #efe6d7;
+      text-align: left;
+      white-space: nowrap;
+    }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    tbody tr:first-child td {
+      font-weight: 700;
+    }
+    .footer-note {
+      margin-top: 18px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    @media (max-width: 720px) {
+      .hero-top, .hero-actions {
+        align-items: stretch;
+      }
+      select {
+        width: 100%;
+      }
+      .award-stat {
+        font-size: 36px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <span class="eyebrow">Pixotada FC 2026</span>
+          <h1>Premiação Mensal</h1>
+          <p>Disputa mensal pelos líderes dos scouts ofensivos, coletivos e defensivos. O recorte usa os registros consolidados de cada mês.</p>
+        </div>
+        <div class="hero-actions">
+          <div>
+            <label for="month-select">Selecione o mês</label>
+            <select id="month-select"></select>
+          </div>
+        </div>
+      </div>
+      <div class="hero-summary" id="hero-summary"></div>
+      <div class="nav">
+        <a href="dashboard_pixotada_2026.html">Dashboard</a>
+        <a href="ranking_modelos_ultimas4.html">Modelos de pontuação</a>
+        <a href="ranking_geral_jogadores.html">Ranking geral</a>
+        <a href="raio_x_jogador.html">Raio X do jogador</a>
+        <a href="efeito_jogadores.html">Efeito dos jogadores</a>
+        <a href="sugestao_novas_notas.html">Sugestão de notas</a>
+        <a href="detalhe_recomendacoes_notas.html">Detalhe das recomendações</a>
+      </div>
+    </section>
+
+    <h2 class="section-title">Líderes do mês</h2>
+    <section class="leader-grid" id="leader-grid"></section>
+
+    <h2 class="section-title">Perseguição por scout</h2>
+    <section class="tables-grid" id="tables-grid"></section>
+  </main>
+
+  <script>
+    const monthlyPayload = {"2026-01":[{"jogador":"Dudu","gols":18,"assistencias":1,"participacoes":19,"gols_time":32,"sg":11,"jogos":6},{"jogador":"Júnior","gols":9,"assistencias":6,"participacoes":15,"gols_time":13,"sg":6,"jogos":4},{"jogador":"PS","gols":8,"assistencias":4,"participacoes":12,"gols_time":15,"sg":5,"jogos":4},{"jogador":"Cláudio","gols":6,"assistencias":4,"participacoes":10,"gols_time":20,"sg":6,"jogos":4},{"jogador":"Daniel","gols":5,"assistencias":5,"participacoes":10,"gols_time":29,"sg":12,"jogos":7},{"jogador":"Nego","gols":3,"assistencias":6,"participacoes":9,"gols_time":17,"sg":6,"jogos":5},{"jogador":"Doca","gols":2,"assistencias":7,"participacoes":9,"gols_time":17,"sg":6,"jogos":4},{"jogador":"Calafa","gols":5,"assistencias":3,"participacoes":8,"gols_time":18,"sg":6,"jogos":7},{"jogador":"Luquinhas","gols":4,"assistencias":4,"participacoes":8,"gols_time":11,"sg":5,"jogos":3},{"jogador":"Lucas","gols":3,"assistencias":5,"participacoes":8,"gols_time":21,"sg":10,"jogos":7},{"jogador":"Down","gols":5,"assistencias":2,"participacoes":7,"gols_time":20,"sg":5,"jogos":4},{"jogador":"Vareta","gols":5,"assistencias":2,"participacoes":7,"gols_time":20,"sg":8,"jogos":6},{"jogador":"Caio","gols":4,"assistencias":2,"participacoes":6,"gols_time":26,"sg":8,"jogos":7},{"jogador":"Gabriel","gols":4,"assistencias":2,"participacoes":6,"gols_time":12,"sg":2,"jogos":3},{"jogador":"Guilherme","gols":4,"assistencias":2,"participacoes":6,"gols_time":14,"sg":7,"jogos":4},{"jogador":"Porpino","gols":4,"assistencias":2,"participacoes":6,"gols_time":13,"sg":5,"jogos":3},{"jogador":"Sabugo","gols":4,"assistencias":2,"participacoes":6,"gols_time":16,"sg":3,"jogos":4},{"jogador":"Fuinha","gols":3,"assistencias":3,"participacoes":6,"gols_time":25,"sg":8,"jogos":5},{"jogador":"Guila","gols":3,"assistencias":3,"participacoes":6,"gols_time":18,"sg":4,"jogos":5},{"jogador":"Gustavo","gols":2,"assistencias":3,"participacoes":5,"gols_time":21,"sg":8,"jogos":4},{"jogador":"Falcão","gols":3,"assistencias":1,"participacoes":4,"gols_time":20,"sg":11,"jogos":5},{"jogador":"Hugão","gols":2,"assistencias":2,"participacoes":4,"gols_time":10,"sg":4,"jogos":2},{"jogador":"Paulão","gols":2,"assistencias":1,"participacoes":3,"gols_time":12,"sg":8,"jogos":3},{"jogador":"Serginho","gols":2,"assistencias":1,"participacoes":3,"gols_time":5,"sg":3,"jogos":2},{"jogador":"Monteiro","gols":2,"assistencias":0,"participacoes":2,"gols_time":4,"sg":3,"jogos":1},{"jogador":"Thiaguinho","gols":2,"assistencias":0,"participacoes":2,"gols_time":8,"sg":5,"jogos":2},{"jogador":"Felipe Fragoso","gols":1,"assistencias":1,"participacoes":2,"gols_time":19,"sg":9,"jogos":4},{"jogador":"Marcelo","gols":1,"assistencias":1,"participacoes":2,"gols_time":7,"sg":1,"jogos":1},{"jogador":"Gera","gols":0,"assistencias":2,"participacoes":2,"gols_time":5,"sg":2,"jogos":1},{"jogador":"Guilherme Azevedo","gols":1,"assistencias":0,"participacoes":1,"gols_time":4,"sg":2,"jogos":1},{"jogador":"JG","gols":1,"assistencias":0,"participacoes":1,"gols_time":1,"sg":1,"jogos":1},{"jogador":"Lucas Odilon","gols":1,"assistencias":0,"participacoes":1,"gols_time":5,"sg":2,"jogos":1},{"jogador":"PH","gols":1,"assistencias":0,"participacoes":1,"gols_time":4,"sg":2,"jogos":1},{"jogador":"Pato","gols":1,"assistencias":0,"participacoes":1,"gols_time":9,"sg":3,"jogos":2},{"jogador":"Sampaio","gols":1,"assistencias":0,"participacoes":1,"gols_time":2,"sg":3,"jogos":1},{"jogador":"Lubeça","gols":0,"assistencias":1,"participacoes":1,"gols_time":4,"sg":2,"jogos":1},{"jogador":"Túlio","gols":0,"assistencias":1,"participacoes":1,"gols_time":2,"sg":3,"jogos":1},{"jogador":"Antônio","gols":0,"assistencias":0,"participacoes":0,"gols_time":1,"sg":0,"jogos":1},{"jogador":"Ascoli","gols":0,"assistencias":0,"participacoes":0,"gols_time":6,"sg":2,"jogos":1},{"jogador":"Bruno","gols":0,"assistencias":0,"participacoes":0,"gols_time":1,"sg":1,"jogos":1},{"jogador":"David Marques","gols":0,"assistencias":0,"participacoes":0,"gols_time":7,"sg":2,"jogos":1},{"jogador":"Fábio","gols":0,"assistencias":0,"participacoes":0,"gols_time":7,"sg":3,"jogos":2},{"jogador":"Guigarrincha","gols":0,"assistencias":0,"participacoes":0,"gols_time":2,"sg":3,"jogos":1},{"jogador":"João","gols":0,"assistencias":0,"participacoes":0,"gols_time":4,"sg":2,"jogos":1},{"jogador":"Pedro Alonso","gols":0,"assistencias":0,"participacoes":0,"gols_time":2,"sg":0,"jogos":1},{"jogador":"Sammy","gols":0,"assistencias":0,"participacoes":0,"gols_time":3,"sg":3,"jogos":1},{"jogador":"Vaca","gols":0,"assistencias":0,"participacoes":0,"gols_time":8,"sg":3,"jogos":2},{"jogador":"Yuri","gols":0,"assistencias":0,"participacoes":0,"gols_time":1,"sg":0,"jogos":1},{"jogador":"Zebra","gols":0,"assistencias":0,"participacoes":0,"gols_time":4,"sg":1,"jogos":1}],"2026-02":[{"jogador":"Júnior","gols":3,"assistencias":6,"participacoes":9,"gols_time":11,"sg":7,"jogos":3},{"jogador":"Guilherme","gols":4,"assistencias":2,"participacoes":6,"gols_time":4,"sg":3,"jogos":2},{"jogador":"Falcão","gols":3,"assistencias":2,"participacoes":5,"gols_time":10,"sg":8,"jogos":3},{"jogador":"Hugão","gols":3,"assistencias":2,"participacoes":5,"gols_time":9,"sg":4,"jogos":2},{"jogador":"Dudu","gols":3,"assistencias":1,"participacoes":4,"gols_time":6,"sg":1,"jogos":1},{"jogador":"PS","gols":3,"assistencias":1,"participacoes":4,"gols_time":7,"sg":2,"jogos":2},{"jogador":"Marcelo","gols":2,"assistencias":2,"participacoes":4,"gols_time":4,"sg":2,"jogos":1},{"jogador":"Diogo","gols":2,"assistencias":1,"participacoes":3,"gols_time":6,"sg":3,"jogos":2},{"jogador":"Caio","gols":1,"assistencias":2,"participacoes":3,"gols_time":8,"sg":5,"jogos":3},{"jogador":"Daniel","gols":2,"assistencias":0,"participacoes":2,"gols_time":7,"sg":5,"jogos":3},{"jogador":"Serginho","gols":2,"assistencias":0,"participacoes":2,"gols_time":3,"sg":2,"jogos":2},{"jogador":"Lucas","gols":1,"assistencias":1,"participacoes":2,"gols_time":4,"sg":3,"jogos":2},{"jogador":"Vareta","gols":1,"assistencias":1,"participacoes":2,"gols_time":12,"sg":7,"jogos":3},{"jogador":"Diogo Girão","gols":0,"assistencias":2,"participacoes":2,"gols_time":4,"sg":3,"jogos":2},{"jogador":"Arthur Melo","gols":1,"assistencias":0,"participacoes":1,"gols_time":5,"sg":0,"jogos":1},{"jogador":"Doca","gols":1,"assistencias":0,"participacoes":1,"gols_time":7,"sg":2,"jogos":2},{"jogador":"Felipe Fragoso","gols":1,"assistencias":0,"participacoes":1,"gols_time":4,"sg":2,"jogos":1},{"jogador":"Gabriel","gols":1,"assistencias":0,"participacoes":1,"gols_time":6,"sg":2,"jogos":2},{"jogador":"Guila","gols":1,"assistencias":0,"participacoes":1,"gols_time":3,"sg":3,"jogos":2},{"jogador":"Gustavo","gols":1,"assistencias":0,"participacoes":1,"gols_time":3,"sg":2,"jogos":2},{"jogador":"Ivo","gols":1,"assistencias":0,"participacoes":1,"gols_time":4,"sg":2,"jogos":1},{"jogador":"Nego","gols":1,"assistencias":0,"participacoes":1,"gols_time":6,"sg":3,"jogos":2},{"jogador":"Sheik","gols":1,"assistencias":0,"participacoes":1,"gols_time":8,"sg":5,"jogos":3},{"jogador":"Batata","gols":0,"assistencias":0,"participacoes":0,"gols_time":1,"sg":2,"jogos":1},{"jogador":"Calafa","gols":0,"assistencias":0,"participacoes":0,"gols_time":3,"sg":1,"jogos":1},{"jogador":"Down","gols":0,"assistencias":0,"participacoes":0,"gols_time":10,"sg":8,"jogos":3},{"jogador":"Fuinha","gols":0,"assistencias":0,"participacoes":0,"gols_time":6,"sg":2,"jogos":2},{"jogador":"Pato","gols":0,"assistencias":0,"participacoes":0,"gols_time":5,"sg":3,"jogos":2},{"jogador":"Paulão","gols":0,"assistencias":0,"participacoes":0,"gols_time":2,"sg":2,"jogos":2},{"jogador":"Sabugo","gols":0,"assistencias":0,"participacoes":0,"gols_time":7,"sg":1,"jogos":2}],"2026-03":[{"jogador":"Júnior","gols":6,"assistencias":2,"participacoes":8,"gols_time":10,"sg":2,"jogos":2},{"jogador":"Arthur Melo","gols":6,"assistencias":0,"participacoes":6,"gols_time":8,"sg":8,"jogos":3},{"jogador":"Luquinhas","gols":5,"assistencias":0,"participacoes":5,"gols_time":3,"sg":5,"jogos":2},{"jogador":"Serginho","gols":2,"assistencias":3,"participacoes":5,"gols_time":10,"sg":5,"jogos":3},{"jogador":"Nego","gols":1,"assistencias":3,"participacoes":4,"gols_time":8,"sg":8,"jogos":3},{"jogador":"Falcão","gols":2,"assistencias":1,"participacoes":3,"gols_time":10,"sg":4,"jogos":3},{"jogador":"Doca","gols":2,"assistencias":0,"participacoes":2,"gols_time":4,"sg":3,"jogos":2},{"jogador":"Felipe Fragoso","gols":2,"assistencias":0,"participacoes":2,"gols_time":5,"sg":3,"jogos":2},{"jogador":"Gustavo","gols":2,"assistencias":0,"participacoes":2,"gols_time":6,"sg":4,"jogos":2},{"jogador":"Caio","gols":1,"assistencias":1,"participacoes":2,"gols_time":7,"sg":3,"jogos":3},{"jogador":"Guila","gols":1,"assistencias":1,"participacoes":2,"gols_time":5,"sg":4,"jogos":2},{"jogador":"Hugão","gols":1,"assistencias":1,"participacoes":2,"gols_time":7,"sg":5,"jogos":2},{"jogador":"Lucas","gols":1,"assistencias":1,"participacoes":2,"gols_time":4,"sg":1,"jogos":1},{"jogador":"Pedro Alonso","gols":1,"assistencias":1,"participacoes":2,"gols_time":5,"sg":2,"jogos":2},{"jogador":"Vareta","gols":1,"assistencias":1,"participacoes":2,"gols_time":10,"sg":3,"jogos":3},{"jogador":"Calafa","gols":1,"assistencias":0,"participacoes":1,"gols_time":4,"sg":1,"jogos":2},{"jogador":"Daniel","gols":1,"assistencias":0,"participacoes":1,"gols_time":6,"sg":4,"jogos":3},{"jogador":"Dudu","gols":1,"assistencias":0,"participacoes":1,"gols_time":2,"sg":1,"jogos":1},{"jogador":"Guilherme","gols":1,"assistencias":0,"participacoes":1,"gols_time":2,"sg":1,"jogos":1},{"jogador":"Pato","gols":1,"assistencias":0,"participacoes":1,"gols_time":6,"sg":2,"jogos":2},{"jogador":"Diogo Girão","gols":0,"assistencias":1,"participacoes":1,"gols_time":7,"sg":3,"jogos":3},{"jogador":"Down","gols":0,"assistencias":1,"participacoes":1,"gols_time":8,"sg":6,"jogos":3},{"jogador":"Paulão","gols":0,"assistencias":1,"participacoes":1,"gols_time":6,"sg":2,"jogos":2},{"jogador":"Sabugo","gols":0,"assistencias":1,"participacoes":1,"gols_time":6,"sg":4,"jogos":2},{"jogador":"Fuinha","gols":0,"assistencias":0,"participacoes":0,"gols_time":6,"sg":7,"jogos":3},{"jogador":"Sheik","gols":0,"assistencias":0,"participacoes":0,"gols_time":8,"sg":2,"jogos":2},{"jogador":"Zé","gols":0,"assistencias":0,"participacoes":0,"gols_time":2,"sg":2,"jogos":1}]};
+
+    const awards = [
+      { key: "score", title: "Jogador mais valioso", subtitle: "maior score do mês", tone: "award-olive" },
+      { key: "gols", title: "Artilheiro", subtitle: "+ gols", tone: "award-gold" },
+      { key: "assistencias", title: "Garçom", subtitle: "+ assistências", tone: "award-teal" },
+      { key: "participacoes", title: "Maestro", subtitle: "+ participações", tone: "award-blue" },
+      { key: "sg", title: "Xerife", subtitle: "+ jogos sem sofrer gols", tone: "award-slate" }
+    ];
+
+    const craqueScores = {"2026-03":{"Serginho":76.41,"Nego":73.37,"Hugão":73.26,"Arthur Melo":72.61,"Luquinhas":68.26,"Júnior":67.72,"Gustavo":66.85,"Guila":65.33,"Falcão":59.24,"Pedro Alonso":57.28,"Vareta":51.3,"Felipe Fragoso":50.43,"Sabugo":45.87,"Fuinha":45.87,"Down":45.76,"Doca":42.28,"Caio":38.59,"Pato":37.61,"Paulão":36.85,"Diogo Girão":35.11,"Sheik":33.48,"Calafa":28.48,"Daniel":28.04}};
+
+    const monthSelect = document.getElementById("month-select");
+    const heroSummary = document.getElementById("hero-summary");
+    const leaderGrid = document.getElementById("leader-grid");
+    const tablesGrid = document.getElementById("tables-grid");
+    const months = Object.keys(monthlyPayload).sort();
+
+    function formatMonth(monthKey) {
+      const [year, month] = monthKey.split("-").map(Number);
+      return new Date(year, month - 1, 1).toLocaleDateString("pt-BR", {
+        month: "long",
+        year: "numeric"
+      });
+    }
+
+    function rankBy(items, statKey) {
+      return [...items].sort((a, b) =>
+        (Number.isFinite(b[statKey]) ? b[statKey] : -Infinity) - (Number.isFinite(a[statKey]) ? a[statKey] : -Infinity) ||
+        b.jogos - a.jogos ||
+        a.jogador.localeCompare(b.jogador, "pt-BR")
+      );
+    }
+
+    function getAvailableAwards(items) {
+      return awards.filter(award => items.some(item => Number.isFinite(item[award.key])));
+    }
+
+    function formatValue(value) {
+      return Number(value).toLocaleString("pt-BR", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 1
+      });
+    }
+
+    function buildSummary(items, monthKey) {
+      const totalJogadores = items.length;
+      const totalJogos = items.reduce((sum, item) => sum + item.jogos, 0);
+      const totalParticipacoes = items.reduce((sum, item) => sum + item.participacoes, 0);
+      heroSummary.innerHTML = `
+        <div class="summary-pill">
+          <span>Mês em foco</span>
+          <strong>${formatMonth(monthKey)}</strong>
+        </div>
+        <div class="summary-pill">
+          <span>Jogadores com scout</span>
+          <strong>${totalJogadores}</strong>
+        </div>
+        <div class="summary-pill">
+          <span>Aparições somadas</span>
+          <strong>${totalJogos}</strong>
+        </div>
+        <div class="summary-pill">
+          <span>Participações em gol</span>
+          <strong>${totalParticipacoes}</strong>
+        </div>
+      `;
+    }
+
+    function buildLeaderCards(items) {
+      leaderGrid.innerHTML = getAvailableAwards(items).map(award => {
+        const ranking = rankBy(items, award.key);
+        const bestValue = ranking[0][award.key];
+        const leaders = ranking.filter(item => item[award.key] === bestValue);
+        const runnerUp = ranking.find(item => item[award.key] < bestValue);
+        const chase = runnerUp ? `${formatValue(bestValue - runnerUp[award.key])} de vantagem para ${runnerUp.jogador}` : "Sem perseguidor direto";
+        return `
+          <article class="card ${award.tone}">
+            <div class="award-name">${award.title}</div>
+            <div class="award-stat">${formatValue(bestValue)}</div>
+            <div class="award-leader">${leaders.map(item => item.jogador).join(", ")}</div>
+            <p class="award-meta">${award.subtitle}. ${chase}.</p>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function buildTables(items) {
+      tablesGrid.innerHTML = getAvailableAwards(items).map(award => {
+        const ranking = rankBy(items, award.key).slice(0, 5);
+        const rows = ranking.map((item, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${item.jogador}</td>
+            <td>${formatValue(item[award.key])}</td>
+            <td>${item.jogos}</td>
+          </tr>
+        `).join("");
+
+        return `
+          <article class="card">
+            <div class="award-name">${award.title}</div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Jogador</th>
+                    <th>Scout</th>
+                    <th>Jogos</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderMonth(monthKey) {
+      const scores = craqueScores[monthKey] || {};
+      const items = (monthlyPayload[monthKey] || []).map(item => ({
+        ...item,
+        score: Number.isFinite(scores[item.jogador]) ? scores[item.jogador] : undefined
+      }));
+      buildSummary(items, monthKey);
+      buildLeaderCards(items);
+      buildTables(items);
+    }
+
+    months.forEach(month => {
+      const option = document.createElement("option");
+      option.value = month;
+      option.textContent = formatMonth(month);
+      monthSelect.appendChild(option);
+    });
+
+    monthSelect.value = months[months.length - 1];
+    renderMonth(monthSelect.value);
+    monthSelect.addEventListener("change", event => renderMonth(event.target.value));
+  </script>
+</body>
+</html>
