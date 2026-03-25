@@ -142,6 +142,19 @@ MANUAL_PELADA_RESULTS = {
             ("final", "nego", 1, "serginho", 0),
         ],
     },
+    "24/03/2026": {
+        "team_map": {"serginho": 1, "ps": 2, "guilherme": 3, "junior": 4},
+        "matches": [
+            ("round_robin", "serginho", 1, "ps", 0),
+            ("round_robin", "junior", 2, "guilherme", 1),
+            ("round_robin", "ps", 0, "junior", 0),
+            ("round_robin", "guilherme", 1, "serginho", 1),
+            ("round_robin", "junior", 1, "serginho", 1),
+            ("round_robin", "guilherme", 1, "ps", 0),
+            ("third", "guilherme", 3, "ps", 1),
+            ("final", "junior", 1, "serginho", 0),
+        ],
+    },
 }
 
 
@@ -358,7 +371,8 @@ def build_match_result_df(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]
         if message["date"] in scout_dates:
             grouped_messages.setdefault(message["date"], []).append(message)
 
-    for date_str, day_messages in grouped_messages.items():
+    for date_str in sorted(scout_dates, key=lambda value: pd.to_datetime(value, dayfirst=True)):
+        day_messages = grouped_messages.get(date_str, [])
         day_df = df.loc[df["Data"].dt.strftime("%d/%m/%Y") == date_str].copy()
 
         if date_str in MANUAL_PELADA_RESULTS:
@@ -2101,6 +2115,7 @@ def build_dashboard(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> str
         <a href="dashboard_pixotada_2026.html">Dashboard</a>
         <a href="ranking_modelos_ultimas4.html">Modelos de pontuação</a>
         <a href="ranking_geral_jogadores.html">Ranking geral</a>
+        <a href="premiacao_mensal.html">Premiação mensal</a>
         <a href="raio_x_jogador.html">Raio X do jogador</a>
         <a href="efeito_jogadores.html">Efeito dos jogadores</a>
         <a href="sugestao_novas_notas.html">Sugestão de notas</a>

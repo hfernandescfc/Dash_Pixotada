@@ -5,7 +5,7 @@ import pandas as pd
 
 import aliases as alias_lib
 from pixotada_dashboard import BASE_DIR, OUTPUT_DIR, PUBLIC_DIR, PLAYERS_FILE, load_data
-from pixotada_scores import MODELS, last4_games, score_model
+from pixotada_scores import MODELS, RECENCY_WEIGHTS, last4_games, score_model
 
 
 ACTUAL_POINTS = {"Campeao": 4, "Segundo": 3, "Terceiro": 2, "Lanterna": 1}
@@ -46,7 +46,7 @@ def build_recent_form(df: pd.DataFrame, player_names: list[str]) -> pd.DataFrame
         .loc[lambda x: x["Recencia"] <= 4]
         .copy()
     )
-    recent4["Peso_recencia"] = recent4["Recencia"].map({1: 0.4, 2: 0.3, 3: 0.2, 4: 0.1})
+    recent4["Peso_recencia"] = recent4["Recencia"].map(RECENCY_WEIGHTS)
     ranking, _ = score_model(recent4, "equilibrado", MODELS["equilibrado"])
     ranking["Top_recent"] = ranking["Posicao"] <= max(1, round(len(ranking) * 0.35))
     ranking["Bottom_recent"] = ranking["Posicao"] >= max(1, len(ranking) - round(len(ranking) * 0.35) + 1)
@@ -674,6 +674,7 @@ def build_html(df: pd.DataFrame) -> str:
         <a href="dashboard_pixotada_2026.html">Dashboard</a>
         <a href="ranking_geral_jogadores.html">Ranking geral</a>
         <a href="ranking_modelos_ultimas4.html">Modelos de pontuação</a>
+        <a href="premiacao_mensal.html">Premiação mensal</a>
         <a href="efeito_jogadores.html">Efeito dos jogadores</a>
         <a href="sugestao_novas_notas.html">Sugestão de notas</a>
         <a href="detalhe_recomendacoes_notas.html">Detalhe das recomendações</a>

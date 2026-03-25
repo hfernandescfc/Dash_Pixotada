@@ -8,7 +8,7 @@ from plotly.offline import get_plotlyjs
 from pixotada_dashboard import BASE_DIR, OUTPUT_DIR, PUBLIC_DIR, POSITION_LABELS, load_data
 
 
-RECENCY_WEIGHTS = {1: 0.4, 2: 0.3, 3: 0.2, 4: 0.1}
+RECENCY_WEIGHTS = {1: 0.325, 2: 0.275, 3: 0.225, 4: 0.175}
 
 MODELS = {
     "conservador": {
@@ -26,11 +26,11 @@ MODELS = {
     "equilibrado": {
         "class_points": {"Campeao": 5, "Segundo": 3, "Terceiro": 2, "Lanterna": 0},
         "weights": {
-            "classificacao": 0.40,
+            "classificacao": 0.30,
             "participacoes": 0.25,
             "gols_time": 0.15,
-            "gols_sofridos": 0.10,
-            "clean_sheet": 0.10,
+            "gols_sofridos": 0.15,
+            "clean_sheet": 0.15,
         },
         "participation_mode": "cap_4",
         "descricao": "Equilibra classificacao, producao ofensiva e consistencia defensiva.",
@@ -363,6 +363,7 @@ def build_general_ranking_html(historic: pd.DataFrame, monthly: pd.DataFrame) ->
       <div class="nav">
         <a href="dashboard_pixotada_2026.html">Dashboard</a>
         <a href="ranking_geral_jogadores.html">Ranking geral</a>
+        <a href="premiacao_mensal.html">Premiacao mensal</a>
         <a href="raio_x_jogador.html">Raio X do jogador</a>
         <a href="ranking_modelos_ultimas4.html">Modelos de pontuacao</a>
         <a href="efeito_jogadores.html">Efeito dos jogadores</a>
@@ -397,6 +398,438 @@ def classify_confidence(games: int) -> str:
     if games >= 3:
         return "Baixa"
     return "Muito baixa"
+
+
+def build_monthly_awards_payload(appearance_df: pd.DataFrame) -> dict[str, list[dict[str, object]]]:
+    monthly_summary = (
+        appearance_df.assign(Mes=lambda x: x["Data"].dt.strftime("%Y-%m"))
+        .groupby(["Mes", "Jogadores"], as_index=False)
+        .agg(
+            gols=("Gol", "sum"),
+            assistencias=("Assist", "sum"),
+            participacoes=("Participacoes", "sum"),
+            gols_time=("Gols_time", "sum"),
+            sg=("Jogos_sem_sofrer", "sum"),
+            jogos=("Data", "count"),
+        )
+        .sort_values(["Mes", "participacoes", "gols", "assistencias", "Jogadores"], ascending=[True, False, False, False, True])
+    )
+
+    payload: dict[str, list[dict[str, object]]] = {}
+    for month_key, month_df in monthly_summary.groupby("Mes"):
+        payload[month_key] = [
+            {
+                "jogador": row.Jogadores,
+                "gols": int(row.gols),
+                "assistencias": int(row.assistencias),
+                "participacoes": int(row.participacoes),
+                "gols_time": int(row.gols_time),
+                "sg": int(row.sg),
+                "jogos": int(row.jogos),
+            }
+            for row in month_df.itertuples()
+        ]
+    return payload
+
+
+def build_monthly_awards_scores(appearance_df: pd.DataFrame) -> dict[str, dict[str, float]]:
+    payload: dict[str, dict[str, float]] = {}
+    for month_key, month_df in appearance_df.groupby(appearance_df["Data"].dt.strftime("%Y-%m")):
+        ranking = build_general_ranking(month_df.copy(), f"Mes {month_key}", min_games=1)
+        payload[month_key] = {
+            row.Jogadores: round(float(row.Score_geral), 2)
+            for row in ranking.itertuples()
+        }
+    return payload
+
+
+def build_monthly_awards_html(appearance_df: pd.DataFrame) -> str:
+    monthly_payload = build_monthly_awards_payload(appearance_df)
+    monthly_scores = build_monthly_awards_scores(appearance_df)
+    monthly_payload_json = json.dumps(monthly_payload, ensure_ascii=False)
+    monthly_scores_json = json.dumps(monthly_scores, ensure_ascii=False)
+
+    return f"""
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Premiação Mensal | Pixotada 2026</title>
+  <style>
+    :root {{
+      --bg: #f3efe6;
+      --panel: #fffdfa;
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --line: #e5dccb;
+      --gold: #d97706;
+      --teal: #0f766e;
+      --blue: #2563eb;
+      --wine: #be123c;
+      --olive: #4d7c0f;
+      --slate: #334155;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, #fff6dc 0%, rgba(255, 246, 220, 0.1) 28%, transparent 50%),
+        linear-gradient(180deg, #ede5d5 0%, var(--bg) 34%, #faf7f1 100%);
+    }}
+    .wrap {{
+      width: min(1380px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 48px;
+    }}
+    .hero, .card {{
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: 0 14px 32px rgba(71, 55, 26, 0.08);
+    }}
+    .hero {{
+      padding: 28px;
+      background:
+        linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(15, 118, 110, 0.08)),
+        var(--panel);
+    }}
+    .eyebrow {{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(217, 119, 6, 0.12);
+      color: #92400e;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }}
+    h1 {{
+      margin: 16px 0 8px;
+      font-size: clamp(30px, 4vw, 48px);
+      line-height: 1.05;
+    }}
+    p {{
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }}
+    .nav, .hero-top, .hero-actions, .hero-summary, .leader-grid, .tables-grid {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }}
+    .hero-top, .hero-actions {{
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }}
+    .nav {{
+      margin-top: 22px;
+    }}
+    .nav a {{
+      text-decoration: none;
+      color: var(--ink);
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+    }}
+    .hero-actions label {{
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }}
+    select {{
+      min-width: 220px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      font-size: 15px;
+    }}
+    .hero-summary {{
+      margin-top: 20px;
+    }}
+    .summary-pill {{
+      padding: 12px 14px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.78);
+      min-width: 180px;
+    }}
+    .summary-pill strong {{
+      display: block;
+      font-size: 18px;
+      margin-top: 4px;
+      color: var(--ink);
+    }}
+    .section-title {{
+      margin: 26px 0 12px;
+      font-size: 24px;
+    }}
+    .leader-grid, .tables-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }}
+    .card {{
+      padding: 18px;
+    }}
+    .award-name {{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }}
+    .award-stat {{
+      margin: 14px 0 4px;
+      font-size: 42px;
+      line-height: 1;
+      font-weight: 800;
+    }}
+    .award-leader {{
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }}
+    .award-meta {{
+      font-size: 14px;
+      color: var(--muted);
+    }}
+    .award-gold .award-name, .award-gold .award-stat {{ color: var(--wine); }}
+    .award-teal .award-name, .award-teal .award-stat {{ color: var(--blue); }}
+    .award-blue .award-name, .award-blue .award-stat {{ color: var(--teal); }}
+    .award-olive .award-name, .award-olive .award-stat {{ color: var(--olive); }}
+    .award-slate .award-name, .award-slate .award-stat {{ color: var(--slate); }}
+    .table-wrap {{
+      overflow-x: auto;
+      margin-top: 14px;
+    }}
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }}
+    th, td {{
+      padding: 12px 10px;
+      border-bottom: 1px solid #efe6d7;
+      text-align: left;
+      white-space: nowrap;
+    }}
+    th {{
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }}
+    tbody tr:first-child td {{
+      font-weight: 700;
+    }}
+    @media (max-width: 720px) {{
+      .hero-top, .hero-actions {{
+        align-items: stretch;
+      }}
+      select {{
+        width: 100%;
+      }}
+      .award-stat {{
+        font-size: 36px;
+      }}
+    }}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <span class="eyebrow">Pixotada FC 2026</span>
+          <h1>Premiação Mensal</h1>
+          <p>Disputa mensal pelos líderes dos scouts ofensivos, coletivos e defensivos. O recorte usa os registros consolidados de cada mês.</p>
+        </div>
+        <div class="hero-actions">
+          <div>
+            <label for="month-select">Selecione o mês</label>
+            <select id="month-select"></select>
+          </div>
+        </div>
+      </div>
+      <div class="hero-summary" id="hero-summary"></div>
+      <div class="nav">
+        <a href="dashboard_pixotada_2026.html">Dashboard</a>
+        <a href="ranking_modelos_ultimas4.html">Modelos de pontuação</a>
+        <a href="ranking_geral_jogadores.html">Ranking geral</a>
+        <a href="premiacao_mensal.html">Premiação mensal</a>
+        <a href="raio_x_jogador.html">Raio X do jogador</a>
+        <a href="efeito_jogadores.html">Efeito dos jogadores</a>
+        <a href="sugestao_novas_notas.html">Sugestão de notas</a>
+        <a href="detalhe_recomendacoes_notas.html">Detalhe das recomendações</a>
+      </div>
+    </section>
+
+    <h2 class="section-title">Líderes do mês</h2>
+    <section class="leader-grid" id="leader-grid"></section>
+
+    <h2 class="section-title">Perseguição por scout</h2>
+    <section class="tables-grid" id="tables-grid"></section>
+  </main>
+
+  <script>
+    const monthlyPayload = {monthly_payload_json};
+    const awards = [
+      {{ key: "score", title: "Jogador mais valioso", subtitle: "maior score do mês", tone: "award-olive" }},
+      {{ key: "gols", title: "Artilheiro", subtitle: "+ gols", tone: "award-gold" }},
+      {{ key: "assistencias", title: "Garçom", subtitle: "+ assistências", tone: "award-teal" }},
+      {{ key: "participacoes", title: "Maestro", subtitle: "+ participações", tone: "award-blue" }},
+      {{ key: "sg", title: "Xerife", subtitle: "+ jogos sem sofrer gols", tone: "award-slate" }}
+    ];
+    const craqueScores = {monthly_scores_json};
+
+    const monthSelect = document.getElementById("month-select");
+    const heroSummary = document.getElementById("hero-summary");
+    const leaderGrid = document.getElementById("leader-grid");
+    const tablesGrid = document.getElementById("tables-grid");
+    const months = Object.keys(monthlyPayload).sort();
+
+    function formatMonth(monthKey) {{
+      const [year, month] = monthKey.split("-").map(Number);
+      return new Date(year, month - 1, 1).toLocaleDateString("pt-BR", {{
+        month: "long",
+        year: "numeric"
+      }});
+    }}
+
+    function rankBy(items, statKey) {{
+      return [...items].sort((a, b) =>
+        (Number.isFinite(b[statKey]) ? b[statKey] : -Infinity) - (Number.isFinite(a[statKey]) ? a[statKey] : -Infinity) ||
+        b.jogos - a.jogos ||
+        a.jogador.localeCompare(b.jogador, "pt-BR")
+      );
+    }}
+
+    function getAvailableAwards(items) {{
+      return awards.filter(award => items.some(item => Number.isFinite(item[award.key])));
+    }}
+
+    function formatValue(value) {{
+      return Number(value).toLocaleString("pt-BR", {{
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+      }});
+    }}
+
+    function buildSummary(items, monthKey) {{
+      const totalJogadores = items.length;
+      const totalJogos = items.reduce((sum, item) => sum + item.jogos, 0);
+      const totalParticipacoes = items.reduce((sum, item) => sum + item.participacoes, 0);
+      heroSummary.innerHTML = `
+        <div class="summary-pill">
+          <span>Mês em foco</span>
+          <strong>${{formatMonth(monthKey)}}</strong>
+        </div>
+        <div class="summary-pill">
+          <span>Jogadores com scout</span>
+          <strong>${{totalJogadores}}</strong>
+        </div>
+        <div class="summary-pill">
+          <span>Aparições somadas</span>
+          <strong>${{totalJogos}}</strong>
+        </div>
+        <div class="summary-pill">
+          <span>Participações em gol</span>
+          <strong>${{totalParticipacoes}}</strong>
+        </div>
+      `;
+    }}
+
+    function buildLeaderCards(items) {{
+      leaderGrid.innerHTML = getAvailableAwards(items).map(award => {{
+        const ranking = rankBy(items, award.key);
+        const bestValue = ranking[0][award.key];
+        const leaders = ranking.filter(item => item[award.key] === bestValue);
+        const runnerUp = ranking.find(item => item[award.key] < bestValue);
+        const chase = runnerUp ? `${{formatValue(bestValue - runnerUp[award.key])}} de vantagem para ${{runnerUp.jogador}}` : "Sem perseguidor direto";
+        return `
+          <article class="card ${{award.tone}}">
+            <div class="award-name">${{award.title}}</div>
+            <div class="award-stat">${{formatValue(bestValue)}}</div>
+            <div class="award-leader">${{leaders.map(item => item.jogador).join(", ")}}</div>
+            <p class="award-meta">${{award.subtitle}}. ${{chase}}.</p>
+          </article>
+        `;
+      }}).join("");
+    }}
+
+    function buildTables(items) {{
+      tablesGrid.innerHTML = getAvailableAwards(items).map(award => {{
+        const ranking = rankBy(items, award.key).slice(0, 5);
+        const rows = ranking.map((item, index) => `
+          <tr>
+            <td>${{index + 1}}</td>
+            <td>${{item.jogador}}</td>
+            <td>${{formatValue(item[award.key])}}</td>
+            <td>${{item.jogos}}</td>
+          </tr>
+        `).join("");
+
+        return `
+          <article class="card">
+            <div class="award-name">${{award.title}}</div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Jogador</th>
+                    <th>Scout</th>
+                    <th>Jogos</th>
+                  </tr>
+                </thead>
+                <tbody>${{rows}}</tbody>
+              </table>
+            </div>
+          </article>
+        `;
+      }}).join("");
+    }}
+
+    function renderMonth(monthKey) {{
+      const scores = craqueScores[monthKey] || {{}};
+      const items = (monthlyPayload[monthKey] || []).map(item => ({{
+        ...item,
+        score: Number.isFinite(scores[item.jogador]) ? scores[item.jogador] : undefined
+      }}));
+      buildSummary(items, monthKey);
+      buildLeaderCards(items);
+      buildTables(items);
+    }}
+
+    months.forEach(month => {{
+      const option = document.createElement("option");
+      option.value = month;
+      option.textContent = formatMonth(month);
+      monthSelect.appendChild(option);
+    }});
+
+    monthSelect.value = months[months.length - 1];
+    renderMonth(monthSelect.value);
+    monthSelect.addEventListener("change", event => renderMonth(event.target.value));
+  </script>
+</body>
+</html>
+"""
 
 
 def build_player_xray_history(appearance_df: pd.DataFrame) -> pd.DataFrame:
@@ -722,6 +1155,7 @@ def build_player_xray_html(history_df: pd.DataFrame, summary_df: pd.DataFrame) -
       <div class="nav">
         <a href="dashboard_pixotada_2026.html">Dashboard</a>
         <a href="ranking_geral_jogadores.html">Ranking geral</a>
+        <a href="premiacao_mensal.html">Premiacao mensal</a>
         <a href="raio_x_jogador.html">Raio X do jogador</a>
         <a href="ranking_modelos_ultimas4.html">Modelos de pontuacao</a>
         <a href="efeito_jogadores.html">Efeito dos jogadores</a>
@@ -1086,6 +1520,7 @@ def build_html(rankings: dict[str, pd.DataFrame], comparison: pd.DataFrame) -> s
       <div class="nav">
         <a href="dashboard_pixotada_2026.html">Dashboard</a>
         <a href="ranking_geral_jogadores.html">Ranking geral</a>
+        <a href="premiacao_mensal.html">Premiação mensal</a>
         <a href="ranking_modelos_ultimas4.html">Modelos de pontuação</a>
         <a href="efeito_jogadores.html">Efeito dos jogadores</a>
         <a href="sugestao_novas_notas.html">Sugestão de notas</a>
@@ -1149,6 +1584,11 @@ def main() -> None:
     (OUTPUT_DIR / "ranking_geral_jogadores.html").write_text(general_html, encoding="utf-8")
     (BASE_DIR / "ranking_geral_jogadores.html").write_text(general_html, encoding="utf-8")
     (PUBLIC_DIR / "ranking_geral_jogadores.html").write_text(general_html, encoding="utf-8")
+
+    monthly_awards_html = build_monthly_awards_html(appearance_df)
+    (OUTPUT_DIR / "premiacao_mensal.html").write_text(monthly_awards_html, encoding="utf-8")
+    (BASE_DIR / "premiacao_mensal.html").write_text(monthly_awards_html, encoding="utf-8")
+    (PUBLIC_DIR / "premiacao_mensal.html").write_text(monthly_awards_html, encoding="utf-8")
 
     xray_history = build_player_xray_history(appearance_df)
     xray_summary = build_player_xray_summary(appearance_df, xray_history, general_historic, general_month)

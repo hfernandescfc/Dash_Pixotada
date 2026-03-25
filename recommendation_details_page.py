@@ -525,6 +525,7 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
         <a href="dashboard_pixotada_2026.html">Dashboard</a>
         <a href="ranking_geral_jogadores.html">Ranking geral</a>
         <a href="ranking_modelos_ultimas4.html">Modelos de pontuação</a>
+        <a href="premiacao_mensal.html">Premiação mensal</a>
         <a href="efeito_jogadores.html">Efeito dos jogadores</a>
         <a href="sugestao_novas_notas.html">Sugestão de notas</a>
         <a href="detalhe_recomendacoes_notas.html">Detalhe das recomendações</a>

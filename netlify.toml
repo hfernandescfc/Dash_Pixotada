@@ -17,6 +17,11 @@ to = "/efeito_jogadores.html"
 status = 301
 
 [[redirects]]
+from = "/premiacao"
+to = "/premiacao_mensal.html"
+status = 301
+
+[[redirects]]
 from = "/sugestao-notas"
 to = "/sugestao_novas_notas.html"
 status = 301
