@@ -3,7 +3,7 @@ publish = "."
 
 [[redirects]]
 from = "/dashboard"
-to = "/dashboard_pixotada_2026.html"
+to = "/"
 status = 301
 
 [[redirects]]
@@ -19,6 +19,16 @@ status = 301
 [[redirects]]
 from = "/premiacao"
 to = "/premiacao_mensal.html"
+status = 301
+
+[[redirects]]
+from = "/ranking-geral"
+to = "/ranking_geral_jogadores.html"
+status = 301
+
+[[redirects]]
+from = "/raio-x"
+to = "/raio_x_jogador.html"
 status = 301
 
 [[redirects]]

@@ -18,7 +18,7 @@ DATA_DIR = SCRIPT_DIR / "data"
 INPUT_FILE = DATA_DIR / "SCOUTS PIXOTADA 2026 - BASE.csv"
 PLAYERS_FILE = DATA_DIR / "players.json"
 CHAT_FILE = DESKTOP_DIR / "pixotada_2026_dashboard" / "Conversa do WhatsApp com Pelada - Pixotada FC.txt"
-OUTPUT_DIR = DESKTOP_DIR / "pixotada_2026_dashboard"
+OUTPUT_DIR = BASE_DIR / "output"
 PUBLIC_DIR = BASE_DIR
 
 POSITION_ORDER = ["Lanterna", "Terceiro", "Segundo", "Campeao"]
@@ -2265,7 +2265,6 @@ def write_outputs(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> None:
 
     html = build_dashboard(df, summaries)
     (OUTPUT_DIR / "dashboard_pixotada_2026.html").write_text(html, encoding="utf-8")
-    (BASE_DIR / "dashboard_pixotada_2026.html").write_text(html, encoding="utf-8")
     (PUBLIC_DIR / "index.html").write_text(html, encoding="utf-8")
 
 
