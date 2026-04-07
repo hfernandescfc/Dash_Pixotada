@@ -2164,6 +2164,7 @@ def write_outputs(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> None:
     html = build_dashboard(df, summaries)
     (OUTPUT_DIR / "dashboard_pixotada_2026.html").write_text(html, encoding="utf-8")
     (PUBLIC_DIR / "index.html").write_text(html, encoding="utf-8")
+    (PUBLIC_DIR / "dashboard_pixotada_2026.html").write_text(html, encoding="utf-8")
 
 
 def main() -> None:
