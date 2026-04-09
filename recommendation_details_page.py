@@ -111,6 +111,7 @@ def build_match_details(scout_df: pd.DataFrame, recent_df: pd.DataFrame) -> pd.D
             rows.append(
                 {
                     "Jogadores": row.Jogadores,
+                    "Data": row.Data,
                     "Data_fmt": row.Data.strftime("%d/%m/%Y"),
                     "Time": int(row.Time),
                     "Gols": int(row.Gol),
@@ -145,7 +146,7 @@ def build_payload(result: pd.DataFrame, match_df: pd.DataFrame) -> dict:
     for row in result.itertuples():
         player = row.scout_name
         player_matches = match_df[match_df["Jogadores"] == player].copy()
-        player_matches = player_matches.sort_values("Data_fmt", ascending=False)
+        player_matches = player_matches.sort_values("Data", ascending=False)
         evaluation = evaluate_recommendation(pd.Series(row._asdict()))
         payload[row.name] = {
             "jogador_json": row.name,
@@ -696,7 +697,15 @@ def build_html(payload: dict, last6_dates: list[pd.Timestamp]) -> str:
         return;
       }}
 
-      matchList.innerHTML = item.partidas.map(match => `
+      const sortedMatches = [...item.partidas].sort((a, b) => {{
+        const [dayA, monthA, yearA] = a.Data_fmt.split('/').map(Number);
+        const [dayB, monthB, yearB] = b.Data_fmt.split('/').map(Number);
+        const dateA = new Date(yearA, monthA - 1, dayA);
+        const dateB = new Date(yearB, monthB - 1, dayB);
+        return dateB - dateA;
+      }});
+
+      matchList.innerHTML = sortedMatches.map(match => `
         <article class="match">
           <div class="match-head">
             <div class="match-title">${{match.Data_fmt}} | Time ${{match.Time}} | ${{match.Classificacao}}</div>

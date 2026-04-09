@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+from datetime import datetime
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -58,7 +59,6 @@ GENERAL_RANKING_WEIGHTS = {
     "delta_points_pg": 0.15,
 }
 GENERAL_RANKING_REVERSE_METRICS = {"gols_sofridos_pg"}
-CURRENT_MONTH = "2026-03"
 CLASS_POINTS = {
     "Campeao": 4,
     "Segundo": 3,
@@ -295,7 +295,12 @@ def build_general_ranking_context(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(appearance_rows)
 
 
-def build_general_ranking_html(historic: pd.DataFrame, monthly: pd.DataFrame) -> str:
+def build_general_ranking_html(
+    historic: pd.DataFrame,
+    monthly: pd.DataFrame,
+    current_month: str,
+    current_month_min_games: int,
+) -> str:
     historic_top = historic.copy()
     monthly_top = monthly.copy()
     for table in [historic_top, monthly_top]:
@@ -379,7 +384,7 @@ def build_general_ranking_html(historic: pd.DataFrame, monthly: pd.DataFrame) ->
       </section>
       <section class="card">
         <h2>Mes corrente</h2>
-        <p>Recorte: {CURRENT_MONTH}. Filtro minimo: 2 jogos.</p>
+        <p>Recorte: {current_month}. Filtro minimo: {current_month_min_games} jogo(s).</p>
         <div class="table-wrap">{monthly_html}</div>
       </section>
     </section>
@@ -1571,16 +1576,26 @@ def main() -> None:
     (PUBLIC_DIR / "ranking_modelos_ultimas4.html").write_text(html, encoding="utf-8")
 
     appearance_df = build_general_ranking_context(df)
+    current_month = datetime.now().strftime("%Y-%m")
+    current_month_df = appearance_df.loc[appearance_df["Data"].dt.strftime("%Y-%m") == current_month].copy()
+    current_month_match_count = current_month_df["Data"].nunique()
+    current_month_min_games = 1 if current_month_match_count == 1 else 2
+
     general_historic = build_general_ranking(appearance_df, "Historico", min_games=4)
     general_month = build_general_ranking(
-        appearance_df.loc[appearance_df["Data"].dt.strftime("%Y-%m") == CURRENT_MONTH].copy(),
-        f"Mes {CURRENT_MONTH}",
-        min_games=2,
+        current_month_df,
+        f"Mes {current_month}",
+        min_games=current_month_min_games,
     )
     general_historic.to_csv(OUTPUT_DIR / "ranking_geral_historico.csv", index=False, encoding="utf-8-sig")
     general_month.to_csv(OUTPUT_DIR / "ranking_geral_mes_corrente.csv", index=False, encoding="utf-8-sig")
 
-    general_html = build_general_ranking_html(general_historic, general_month)
+    general_html = build_general_ranking_html(
+        general_historic,
+        general_month,
+        current_month=current_month,
+        current_month_min_games=current_month_min_games,
+    )
     (OUTPUT_DIR / "ranking_geral_jogadores.html").write_text(general_html, encoding="utf-8")
     (BASE_DIR / "ranking_geral_jogadores.html").write_text(general_html, encoding="utf-8")
     (PUBLIC_DIR / "ranking_geral_jogadores.html").write_text(general_html, encoding="utf-8")
