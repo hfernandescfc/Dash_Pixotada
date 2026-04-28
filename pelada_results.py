@@ -156,4 +156,17 @@ MANUAL_PELADA_RESULTS: dict[str, dict] = {
             ("final", "pa", 0, "guilherme", 1),
         ],
     },
+    "27/04/2026": {
+        "team_map": {"junior": 1, "guilherme": 2, "luquinhas": 3, "serginho": 4},
+        "matches": [
+            ("round_robin", "guilherme", 0, "serginho", 2),
+            ("round_robin", "luquinhas", 0, "junior", 0),
+            ("round_robin", "junior", 1, "serginho", 1),
+            ("round_robin", "luquinhas", 2, "guilherme", 1),
+            ("round_robin", "guilherme", 1, "junior", 0),
+            ("round_robin", "luquinhas", 0, "serginho", 0),
+            ("third", "guilherme", 0, "junior", 0),
+            ("final", "serginho", 2, "luquinhas", 0),
+        ],
+    },
 }

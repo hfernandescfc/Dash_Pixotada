@@ -8,8 +8,8 @@ import sys
 from pathlib import Path
 
 SCRIPTS = [
-    "pixotada_dashboard.py",
     "pixotada_scores.py",
+    "pixotada_dashboard.py",
     "pixotada_effect_analysis.py",
     "rating_recommendations.py",
     "recommendation_details_page.py",

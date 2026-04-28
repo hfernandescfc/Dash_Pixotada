@@ -406,9 +406,11 @@ def classify_confidence(games: int) -> str:
 
 
 def build_monthly_awards_payload(appearance_df: pd.DataFrame) -> dict[str, list[dict[str, object]]]:
+    df = appearance_df.assign(Mes=lambda x: x["Data"].dt.strftime("%Y-%m"))
+    peladas_por_mes = df.groupby("Mes")["Data"].nunique()
+
     monthly_summary = (
-        appearance_df.assign(Mes=lambda x: x["Data"].dt.strftime("%Y-%m"))
-        .groupby(["Mes", "Jogadores"], as_index=False)
+        df.groupby(["Mes", "Jogadores"], as_index=False)
         .agg(
             gols=("Gol", "sum"),
             assistencias=("Assist", "sum"),
@@ -422,6 +424,8 @@ def build_monthly_awards_payload(appearance_df: pd.DataFrame) -> dict[str, list[
 
     payload: dict[str, list[dict[str, object]]] = {}
     for month_key, month_df in monthly_summary.groupby("Mes"):
+        min_games = 1 if peladas_por_mes.get(month_key, 0) <= 1 else 2
+        eligible = month_df.loc[month_df["jogos"] >= min_games]
         payload[month_key] = [
             {
                 "jogador": row.Jogadores,
@@ -432,15 +436,18 @@ def build_monthly_awards_payload(appearance_df: pd.DataFrame) -> dict[str, list[
                 "sg": int(row.sg),
                 "jogos": int(row.jogos),
             }
-            for row in month_df.itertuples()
+            for row in eligible.itertuples()
         ]
     return payload
 
 
 def build_monthly_awards_scores(appearance_df: pd.DataFrame) -> dict[str, dict[str, float]]:
+    df = appearance_df.assign(Mes=lambda x: x["Data"].dt.strftime("%Y-%m"))
+    peladas_por_mes = df.groupby("Mes")["Data"].nunique()
     payload: dict[str, dict[str, float]] = {}
     for month_key, month_df in appearance_df.groupby(appearance_df["Data"].dt.strftime("%Y-%m")):
-        ranking = build_general_ranking(month_df.copy(), f"Mes {month_key}", min_games=1)
+        min_games = 1 if peladas_por_mes.get(month_key, 0) <= 1 else 2
+        ranking = build_general_ranking(month_df.copy(), f"Mes {month_key}", min_games=min_games)
         payload[month_key] = {
             row.Jogadores: round(float(row.Score_geral), 2)
             for row in ranking.itertuples()

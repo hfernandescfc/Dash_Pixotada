@@ -85,7 +85,7 @@
   },
   {
     "name": "Pato",
-    "rating": 2,
+    "rating": 3,
     "intensity": "LOW",
     "mensalista": true
   },
@@ -97,7 +97,7 @@
   },
   {
     "name": "Arthur Melo",
-    "rating": 2,
+    "rating": 1,
     "intensity": "LOW",
     "mensalista": false
   },
@@ -265,7 +265,7 @@
   },
   {
     "name": "Felipe Fragoso",
-    "rating": 5,
+    "rating": 6,
     "intensity": "HIGH",
     "mensalista": false
   },

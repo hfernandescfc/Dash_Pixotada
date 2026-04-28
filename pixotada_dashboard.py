@@ -417,7 +417,7 @@ def load_players() -> pd.DataFrame:
 
 
 def load_data() -> pd.DataFrame:
-    df = pd.read_csv(INPUT_FILE, encoding="utf-8-sig")
+    df = pd.read_csv(INPUT_FILE, encoding="cp1252")
     df.columns = [col.strip() for col in df.columns]
     # The last column is the ranking label, but its header may arrive mangled.
     df = df.rename(columns={df.columns[-1]: "classificacao"})
@@ -459,6 +459,7 @@ def build_summary_tables(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
             Participacoes=("participacoes", "sum"),
             Amarelos=("Amarelo", "sum"),
             Vermelhos=("Red", "sum"),
+            Desarmes=("Desarme", "sum"),
             Gols_sofridos=("gols_sofridos", "sum"),
             Gols_do_time=("gols_time", "sum"),
             Jogos_sem_sofrer=("jogos_sem_sofrer", "sum"),
@@ -789,6 +790,13 @@ def top10_switcher(df: pd.DataFrame) -> go.Figure:
             "color": "#16a085",
         },
         {
+            "column": "Desarmes",
+            "label": "Desarmes",
+            "title": "Top 10 de ladroes de bola",
+            "xaxis": "Desarmes",
+            "color": "#7d3c98",
+        },
+        {
             "column": "Amarelos",
             "label": "Amarelos",
             "title": "Top 10 de cartoes amarelos",
@@ -1097,7 +1105,6 @@ def classification_chart_switcher(df: pd.DataFrame) -> go.Figure:
 
 
 def classification_games_adjusted_chart(df: pd.DataFrame) -> go.Figure:
-    order = player_order(df)
     count_df = (
         df.pivot_table(
             index="Jogadores",
@@ -1106,7 +1113,7 @@ def classification_games_adjusted_chart(df: pd.DataFrame) -> go.Figure:
             aggfunc="count",
             fill_value=0,
         )
-        .reindex(index=order, columns=POSITION_ORDER, fill_value=0)
+        .reindex(columns=POSITION_ORDER, fill_value=0)
         .reset_index()
     )
     expected_df = count_df.copy()
@@ -1114,6 +1121,31 @@ def classification_games_adjusted_chart(df: pd.DataFrame) -> go.Figure:
 
     for position in POSITION_ORDER:
         expected_df[position] = (count_df[position].astype(float) / total_games.where(total_games > 0)).fillna(0.0)
+
+    position_weights = {"Campeao": 4, "Segundo": 3, "Terceiro": 2, "Lanterna": 1}
+    relative_position_score = sum(expected_df[position] * position_weights[position] for position in POSITION_ORDER)
+    order_df = expected_df.assign(
+        total_games=total_games,
+        relative_position_score=relative_position_score,
+    )
+    order = (
+        order_df.sort_values(
+            [
+                "relative_position_score",
+                "Campeao",
+                "Segundo",
+                "Terceiro",
+                "Lanterna",
+                "total_games",
+                "Jogadores",
+            ],
+            ascending=[False, False, False, False, True, False, True],
+        )["Jogadores"]
+        .tolist()
+    )
+    count_df = count_df.set_index("Jogadores").loc[order].reset_index()
+    expected_df = expected_df.set_index("Jogadores").loc[order].reset_index()
+    total_games = count_df[POSITION_ORDER].sum(axis=1).astype(float)
 
     fig = go.Figure()
     for position in POSITION_ORDER:
@@ -1831,6 +1863,20 @@ def build_dashboard(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> str
             "Participacoes": "Participa\u00e7\u00f5es",
         }
     ).to_html(index=False, classes="table sortable-table", border=0)
+    steals_ranking = (
+        summary_df.loc[summary_df["Desarmes"] > 0, ["Jogadores", "Desarmes", "Jogos"]]
+        .assign(Desarmes_por_jogo=lambda x: x["Desarmes"] / x["Jogos"])
+        .sort_values(["Desarmes", "Desarmes_por_jogo", "Jogadores"], ascending=[False, False, True])
+        .head(15)
+        .rename(
+            columns={
+                "Jogadores": "Jogador",
+                "Desarmes_por_jogo": "Desarmes por jogo",
+            }
+        )
+    )
+    steals_ranking["Desarmes por jogo"] = steals_ranking["Desarmes por jogo"].map(lambda value: f"{value:.2f}")
+    steals_table = steals_ranking.to_html(index=False, classes="table sortable-table", border=0)
 
     plotly_js = get_plotlyjs()
     return f"""
@@ -2025,6 +2071,13 @@ def build_dashboard(df: pd.DataFrame, summaries: dict[str, pd.DataFrame]) -> str
       <h2>Top 10 geral em participa\u00e7\u00f5es</h2>
       <div class="table-wrap">
         {top10_table}
+      </div>
+    </section>
+    <section class="card">
+      <h2>Maiores ladroes de bola</h2>
+      <p>Ranking por desarmes registrados na base, com media por jogo para desempate.</p>
+      <div class="table-wrap">
+        {steals_table}
       </div>
     </section>
     <section class="grid">
